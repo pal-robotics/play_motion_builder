@@ -1,0 +1,15 @@
+robot_description: "<robot name=\"testbot\"><joint name=\"arm_left_joint\" type=\"revolute\"/><joint name=\"arm_right_joint\" type=\"revolute\"/><joint name=\"head_joint\" type=\"revolute\"/></robot>"
+robot_description_semantic: "<?xml version=\"1.0\" ?><robot name=\"testbot\"><group name=\"arm_left\"><joint name=\"arm_left_joint\" /></group><group name=\"arm_right\"><joint name=\"arm_right_joint\"/></group><group name=\"both_arms\"><group name=\"arm_left\" /><group name=\"arm_right\" /></group></robot>"
+play_motion:
+  approach_planner:
+    exclude_from_planning_joints: ["head_joint"]
+  motions:
+    test_motion_edit:
+      joints: ['head_joint', 'arm_left_joint']
+      points:
+        - time_from_start: 0.0
+          positions: [0.10, 0.20]
+        - time_from_start: 1.0
+          positions: [0.11, 0.21]
+        - time_from_start: 3.0
+          positions: [0.12, 0.22]

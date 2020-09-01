@@ -1,0 +1,8 @@
+uint8 RUN_MOTION=0
+uint8 GO_TO_STEP=1
+
+uint8 run_mode
+float32 downshift
+uint16 step_id
+---
+---

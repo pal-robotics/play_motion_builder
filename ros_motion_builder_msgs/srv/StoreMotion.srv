@@ -1,0 +1,6 @@
+string file_path
+string ros_name
+ros_motion_builder_msgs/Meta meta
+---
+bool ok
+string message

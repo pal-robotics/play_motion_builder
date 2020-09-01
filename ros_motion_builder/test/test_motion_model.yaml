@@ -1,0 +1,17 @@
+play_motion:
+  motions:
+    test_motion:
+      joints: [arm_left_1_joint, arm_left_2_joint, arm_left_3_joint, arm_left_4_joint, arm_left_5_joint, arm_left_6_joint, arm_left_7_joint, arm_right_1_joint, arm_right_2_joint, arm_right_3_joint, arm_right_4_joint, arm_right_5_joint, arm_right_6_joint, arm_right_7_joint, torso_1_joint, torso_2_joint]
+      points:
+        - time_from_start: 0
+          positions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        - time_from_start: 3
+          positions: [0, 1.8126, 0, 0, 0, 0, 0, 0, 1.8112, 0, 0, 0, 0, 0, 0, 0]
+        - time_from_start: 6
+          positions: [0, 1.8126, 0, 0, 0, 0, 0, 0, 1.8126, 0, 2.1411, 0, 0, 0, 0, 0]
+        - time_from_start: 9
+          positions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      meta:
+        name: test
+        usage: test
+        description: Test movement to test

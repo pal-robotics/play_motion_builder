@@ -1,0 +1,15 @@
+play_motion:
+  motions:
+    test_motion_new:
+      joints: [arm_left_joint, arm_right_joint, head_joint]
+      points:
+        - time_from_start: 0
+          positions: [0.4, 0.5, 0.6]
+        - time_from_start: 5
+          positions: [0.1, 0.2, 0.3]
+        - time_from_start: 10
+          positions: [0.4, 0.5, 0.6]
+      meta:
+        name: Test Motion New
+        usage: Test
+        description: Motion created to test the system

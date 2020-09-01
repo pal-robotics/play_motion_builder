@@ -1,0 +1,12 @@
+# Empty if group shouldn't be changed, name of the group otherwise
+string group
+# List of joints not in a group to be removed from the motion
+string[] joints_to_remove
+# List of joints not in a group to be added to a motion
+string[] joints_to_add
+---
+bool ok
+string message
+# Current joint configuration
+string current_group
+string[] used_joints 

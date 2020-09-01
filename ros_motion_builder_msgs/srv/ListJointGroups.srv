@@ -1,0 +1,4 @@
+---
+string[] groups
+string[] additional_joints
+string[] available_joints

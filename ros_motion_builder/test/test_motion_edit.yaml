@@ -1,0 +1,11 @@
+play_motion:
+  motions:
+    test_motion_edit:
+      joints: [arm_left_joint, arm_right_joint]
+      points:
+        - time_from_start: 0
+          positions: [0.2, nan]
+        - time_from_start: 5.5
+          positions: [0.21, nan]
+        - time_from_start: 7.5
+          positions: [0.22, nan]
