@@ -1,8 +1,11 @@
+# Motion modes
 uint8 RUN_MOTION=0
 uint8 GO_TO_STEP=1
 
 uint8 run_mode
+# Factor by which to slow down the motion (only used if run_mode is RUN_MOTION)
 float32 downshift
+# Step id to which the robot will be moved (only used if run_mode is GO_TO_STEP)
 uint16 step_id
 ---
 ---

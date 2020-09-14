@@ -5,8 +5,11 @@ string[] joints_to_remove
 # List of joints not in a group to be added to a motion
 string[] joints_to_add
 ---
+# True if no issues ocurred during the call
 bool ok
+# Error message in case an issue occurred during the call
 string message
-# Current joint configuration
+# Current group configuration
 string current_group
+# List of current active joints not in a group
 string[] used_joints 

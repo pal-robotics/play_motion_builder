@@ -42,6 +42,11 @@ struct PrintMotion
 };
 
 /** Motion model **/
+
+/**
+* The JointGroup Struct represents a joint group as defined
+* by move_it
+*/
 struct JointGroup
 {
   std::string group_name_;
@@ -55,6 +60,9 @@ struct JointGroup
   {
   }
 };
+/**
+* The JointModel Struct represent the limits of a given joint
+*/
 struct JointModel
 {
   double lower_limit_;
@@ -74,6 +82,9 @@ struct JointModel
     return lower_limit_ <= position && upper_limit_ >= position;
   }
 };
+/**
+* The JointPosition Struct represent the position of a given joint
+*/
 struct JointPosition
 {
   std::string joint_name_;
@@ -84,6 +95,9 @@ struct JointPosition
   {
   }
 };
+/**
+* The KeyFrame class represents a specific joint configuration at a given time
+*/
 class KeyFrame
 {
 public:
@@ -117,7 +131,10 @@ private:
   std::vector<JointPosition> joints_;
   float time_increment_;
 };
-
+/**
+* The Motion class represents a complex motion of the robot, encoded as
+* a sequence of Keyframes at specific times
+*/
 class Motion
 {
 public:

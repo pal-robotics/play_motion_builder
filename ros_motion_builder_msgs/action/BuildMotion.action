@@ -1,5 +1,8 @@
+# Optional name of the motion, if not empty load this motion
 string motion
 ---
+# True if no issues happened during the action
 bool ok
+# If any error has ocurred provide information
 string message
 ---

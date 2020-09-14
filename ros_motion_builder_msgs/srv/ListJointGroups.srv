@@ -1,4 +1,7 @@
 ---
+# List of available groups
 string[] groups
+# List of joints not in any group
 string[] additional_joints
+# Complete list of joints (including those in a group)
 string[] available_joints
