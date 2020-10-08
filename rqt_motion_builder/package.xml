@@ -11,19 +11,20 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>class_loader</build_depend>
   <build_depend>qtbase5-dev</build_depend>
-  <build_depend version_gte="0.3.0">qt_gui</build_depend>
-  <build_depend version_gte="0.3.0">qt_gui_cpp</build_depend>
+  <build_depend>ros_motion_builder_msgs</build_depend>
+  <build_depend>play_motion_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
 
   <depend>roscpp</depend>
   <depend>actionlib</depend>
   <depend>rqt_gui_cpp</depend>
   <depend>ros_motion_builder</depend>
-  <depend>ros_motion_builder_msgs</depend>
-
-  <exec_depend version_gte="0.3.0">qt_gui</exec_depend>
-  <exec_depend version_gte="0.3.0">qt_gui_cpp</exec_depend>
+  <depend>urdf</depend>
 
   <exec_depend>rqt_gui</exec_depend>
+  <exec_depend>ros_motion_builder_msgs</exec_depend>
+  <exec_depend>play_motion_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
