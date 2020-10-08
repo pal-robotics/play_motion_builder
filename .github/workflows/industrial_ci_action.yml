@@ -4,6 +4,8 @@ on: [push, pull_request]
 
 jobs:
   industrial_ci:
+    env:
+        UPSTREAM_WORKSPACE: 'github:pal-robotics/play_motion#kinetic-devel'
     strategy:
       matrix:
         env:
