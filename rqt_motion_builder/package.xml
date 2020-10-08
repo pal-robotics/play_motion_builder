@@ -11,6 +11,8 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>class_loader</build_depend>
   <build_depend>qtbase5-dev</build_depend>
+  <build_depend version_gte="0.3.0">qt_gui</build_depend>
+  <build_depend version_gte="0.3.0">qt_gui_cpp</build_depend>
 
   <depend>roscpp</depend>
   <depend>actionlib</depend>
