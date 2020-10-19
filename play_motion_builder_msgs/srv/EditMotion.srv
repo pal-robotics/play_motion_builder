@@ -1,0 +1,22 @@
+# Definitions of actions
+uint8 LIST=0
+uint8 APPEND=1
+uint8 EDIT=2
+uint8 COPY_AS_NEXT=3
+uint8 COPY_AS_LAST=4
+uint8 REMOVE=5
+uint8 EDIT_TIME=6
+
+# Step id for the step to which the action should be applied
+uint16 step_id
+# Action to execute
+uint8 action
+# Time to be set (only used if action is EDIT_TIME)
+float32 time
+---
+# True if no issues ocurred during the call
+bool ok
+# Error message in case an issue occurred during the call
+string message
+# Current state of the motion
+play_motion_builder_msgs/Motion motion

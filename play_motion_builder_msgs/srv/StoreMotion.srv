@@ -1,0 +1,12 @@
+# Path to where the file should be stored (if wmpty no file is stored)
+string file_path
+# Parameter name assigned to the motion
+string ros_name
+# Metadata of the motion
+play_motion_builder_msgs/Meta meta
+---
+# True if no issues occured
+bool ok
+# If an error has occurred information on the error, otherwise 
+# this field will contain the data written to the file in string format
+string message

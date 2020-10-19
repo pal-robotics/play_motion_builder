@@ -1,0 +1,15 @@
+<library path="lib/librqt_play_motion_builder_gui">
+  <class name="pal/RQTPlayMotionBuilder" type="pal::RQTPlayMotionBuilder" base_class_type="rqt_gui_cpp::Plugin">
+    <description>RQS utility to build motions</description>
+    <qtgui>
+       <group>
+        <label>Robot Tools</label>
+        <icon type="theme">folder</icon>
+        <statustip>Plugins related to robot tools.</statustip>
+      </group>
+      <label>Motion builder</label>
+      <icon type="theme">image-x-generic</icon>
+      <statustip>A plugin to create new motions</statustip>
+    </qtgui>
+  </class>
+</library>

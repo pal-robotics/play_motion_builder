@@ -1,0 +1,8 @@
+<launch>
+  <rosparam command="load" file="$(find play_motion_builder)/test/test_motion_builder.yaml" />
+  <param name="test_file_path_new" value="$(find play_motion_builder)/test/test_motion_new.yaml"/>
+  <param name="test_file_path_edit" value="$(find play_motion_builder)/test/test_motion_edit.yaml"/>
+
+  <node pkg="play_motion_builder" type="play_motion_builder_node" name="play_motion_builder_node" output="screen"/>
+  <test test-name="test_motion_builder" pkg="play_motion_builder" type="test_motion_builder"/>
+</launch>

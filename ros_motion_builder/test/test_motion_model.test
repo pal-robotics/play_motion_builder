@@ -1,6 +1,0 @@
-<launch>
-  <rosparam command="load" file="$(find ros_motion_builder)/test/test_motion_model.yaml" />
-  <param name="test_file_path" value="$(find ros_motion_builder)/test/test_motion_model.yaml"/>
-
-  <test test-name="test_motion_model" pkg="ros_motion_builder" type="test_motion_model"/>
-</launch>

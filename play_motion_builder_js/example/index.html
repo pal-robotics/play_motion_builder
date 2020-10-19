@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Motion builder Js</title>
+	<link rel="stylesheet" type="text/css" href="styles.css">
+	<!-- RosLibJs -->
+	<script type="text/javascript" src="http://static.robotwebtools.org/EventEmitter2/current/eventemitter2.min.js"></script>
+	<script src="https://static.robotwebtools.org/roslibjs/current/roslib.min.js"></script>
+	<!-- play_motion_builder Js library -->
+	<script src="../src/play_motion_builder.js"></script>
+	<!-- Other libraries used for this example -->
+	<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha256-4+XzXVhsDmqanXGHaHvgh1gMQKX40OUvDEBTu8JcmNs=" crossorigin="anonymous"></script>
+	<script src="script.js"></script>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+	<div class="main-container">
+		<!-- Top Bar -->
+		<div class="top-bar">
+			<div class="top-bar-left">
+				<div class="white-btn" id="new-btn" onclick="newMotion()">
+					<div class="white-btn-text">New</div>
+				</div>	
+				<div class="blue-btn" id="load-btn" onclick="motion_builder.listAvailableMotions(loadMotionsList);">
+					<div class="blue-btn-text">Load</div>
+				</div>	
+			</div>
+			<div class="blue-btn disabled-btn" id="save-btn" onclick="loadMetaDates(motion_builder.motion.meta, motion_builder.motion.ros_name);">
+				<div class="blue-btn-text">Save as</div>
+			</div>	
+		</div>
+		<!-- Workspace -->
+		<div class="workspace">
+			<!-- Table -->
+			<div class="mb-table-wrapper">
+				<div class="mb-table-scroll">
+					<table class="mb-table" id="mb-table">
+						<thead>
+							<tr id="table-head">
+							</tr>
+						</thead>
+						<tbody id="table-body">
+						</tbody>
+					</table>
+					<div class="context" id="context">
+					</div>
+				</div>
+			</div>
+			<!-- Control Panel -->
+			<div class="control-panel">
+				<div class="groups-list" id="groups-list">
+					<!-- groups_list -->
+				</div>
+				<div class="extra-list" id="extra-list">
+					<!-- extra_list -->
+				</div>
+				<div class="player">
+					<div class="play-btns">
+						<div class="downshift">
+							<div class="white-btn-text">Downshift:</div>
+							<input type="number" id="downshift" name="downshift" class="downshift-input" min="1" value="1" step="0.5">
+						</div>
+						<div class="play-btn disabled-border" id="play-btn" onclick="playMotion()">
+							<div class="play-btn-text disabled-text">
+								<div id="play-text">Play</div>
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="play-icon disabled-icon" id="play-icon">
+									<path d="M0 0h24v24H0z" fill="none"/>
+									<path d="M10 16.5l6-4.5-6-4.5v9zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+								</svg>
+							</div>
+						</div>
+					</div>
+					<div class="capture-btn disabled-btn" id="capture-btn" onclick="captureKeyframe()">
+						<div class="blue-btn-text">
+							Capture <br> Keyframe
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- 'Save as' popup -->
+	<div class="popup-bg d-none" id="save-popup" onclick="closePopup('save-popup', event.target.id)">
+		<div class="popup">
+			<div class="popup-title">Save as...</div>
+			<div class="form-item">
+				<div class="popup-subtitle">ROS name <span class="star">*</span></div>
+				<input type="text" name="ros_name" id="ros_name" oninput="checkRosName(value)">
+				<div id="notification"></div>
+			</div>
+			<div class="form-item">
+				<div class="popup-subtitle">Meta: Name</div>
+				<input type="text" name="meta_name" id="meta_name">
+			</div>
+			<div class="form-item">
+				<div class="popup-subtitle">Meta: Usage</div>
+				<input type="text" name="meta_usage" id="meta_usage">
+			</div>
+			<div class="form-item">
+				<div class="popup-subtitle">Meta: Description</div>
+				<textarea name="meta_description" id="meta_description"></textarea>
+			</div>
+			<div class="popup-bottom">
+				<div class="popup-btn" id="cancel-popup" onclick="closePopup('save-popup', 'btn')">Cancel</div>
+				<div class="popup-btn disabled-text" id="save-btn-popup" onclick="saveMotion()">Save</div>
+			</div>
+		</div>
+	</div>
+	<!-- 'Load' popup -->
+	<div class="popup-bg d-none" id="load-popup" onclick="closePopup('load-popup', event.target.id)">
+		<div class="popup">
+			<div class="popup-title">Choose motion to load</div>
+			<div class="motions-list-container">
+				<ul id="motions-list">
+				</ul>
+			</div>
+			<div class="popup-bottom">
+				<div class="popup-btn" id="cancel-popup" onclick="closePopup('load-popup', 'btn')">Cancel</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
