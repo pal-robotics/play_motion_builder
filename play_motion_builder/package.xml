@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>play_motion_builder</name>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <description>The play_motion_builder package, a node to handle the creation of new motions for play_motion.</description>
 
   <maintainer email="david.fernandez@pal-robotics.com">davidfernandez</maintainer>
