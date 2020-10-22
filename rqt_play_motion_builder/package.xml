@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>rqt_play_motion_builder</name>
-  <version>1.0.1</version>
+  <version>1.0.2</version>
   <description>The rqt_play_motion_builder package, a front-end interface for play_motion_builder</description>
 
   <maintainer email="david.fernandez@pal-robotics.com">davidfernandez</maintainer>
