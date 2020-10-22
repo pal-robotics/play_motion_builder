@@ -2,6 +2,11 @@
 Changelog for package play_motion_builder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fix dependencies
+* Contributors: davidfernandez
+
 1.0.1 (2020-10-21)
 ------------------
 * REname projecto to comply with naming scheme
