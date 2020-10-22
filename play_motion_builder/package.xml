@@ -15,6 +15,7 @@
   <depend>yaml-cpp</depend>
   <depend>play_motion_builder_msgs</depend>
   <depend>play_motion_msgs</depend>
+  <depend>actionlib</depend>
 
   <test_depend>rostest</test_depend>
 

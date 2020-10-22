@@ -42,4 +42,4 @@ generate_messages(
 ###################################
 ## catkin specific configuration ##
 ###################################
-catkin_package(CATKIN_DEPENDS message_runtime)
+catkin_package(CATKIN_DEPENDS message_runtime actionlib_msgs)

@@ -17,8 +17,8 @@ find_package(catkin REQUIRED
 ###################################
 catkin_package(
   INCLUDE_DIRS include
-LIBRARIES motion_model_lib 
-#  CATKIN_DEPENDS other_catkin_pkg
+  LIBRARIES motion_model_lib 
+  CATKIN_DEPENDS play_motion_msgs play_motion_builder_msgs sensor_msgs
 #  DEPENDS system_lib
 )
 
