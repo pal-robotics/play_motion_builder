@@ -165,7 +165,7 @@ public:
 
   void removeAllKeyFrames();
   void addJointToGroup(const std::string& group, const std::string& joint);
-  void addGroupToGroup(const std::string& group, const std::string& subgroup);
+  bool addGroupToGroup(const std::string& group, const std::string& subgroup);
 
   const std::string& getParamName() const
   {

@@ -133,6 +133,10 @@ void ROSMotionBuilderNode::buildMotionPreemptCb()
   result.message = "Process was preempted";
   action_server_.setPreempted(result);
 
+  // Clear the temporal motion created if necessary
+  if (motion_->getParamName() != "")
+    nh_.deleteParam("/play_motion/motions/" + motion_->getParamName());
+
   // Clear the motion
   motion_.reset();
 }

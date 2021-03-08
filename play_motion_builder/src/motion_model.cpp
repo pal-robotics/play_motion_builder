@@ -141,9 +141,13 @@ Motion::Motion(const std::string &robot_description, const std::string &robot_de
   }
 
   // Collect extra joints
+  std::vector<std::string> existing_joints = getAvailableJoints();
   for (const auto &joint : extra_joints)
   {
-    extra_joints_[joint] = true;
+    // Check that the joint is not already loaded
+    if (std::find(existing_joints.begin(), existing_joints.end(), joint) ==
+        existing_joints.end())
+      extra_joints_[joint] = true;
   }
 }
 
@@ -272,6 +276,7 @@ void Motion::setMotionGroups(const std::string &robot_description,
   boost::property_tree::read_xml(ss_semantic, tree_semantic);
 
   // Load groups
+  std::vector<std::pair<std::string, std::string>> pending_groups_;
   for (boost::property_tree::ptree::value_type &group : tree_semantic.get_child("robot"))
   {
     if (group.first != "group")  // Ignore others
@@ -313,15 +318,24 @@ void Motion::setMotionGroups(const std::string &robot_description,
         {
           if (subgroup_att.first == "name")
           {
-            addGroupToGroup(group_name, subgroup_att.second.data());
+            if (!addGroupToGroup(group_name, subgroup_att.second.data()))
+            {
+              pending_groups_.push_back(std::make_pair(group_name, subgroup_att.second.data()));
+              ROS_DEBUG_STREAM("Wait for group" << subgroup_att.second.data() << " to be loaded");
+            }
             ROS_DEBUG_STREAM("Add group " << subgroup_att.second.data() << " to " << group_name);
           }
         }
       }
     }
   }
+  // Process subgroups that weren't loaded in order
+  for (const auto &pair : pending_groups_)
+    addGroupToGroup(pair.first, pair.second);
+
   // Add empty group
   joint_groups_["None"] = {};
+  ROS_DEBUG_STREAM("Joints loaded");
 }
 
 void Motion::setParamName()
@@ -505,14 +519,23 @@ void Motion::addJointToGroup(const std::string &group, const std::string &joint)
   joint_groups_.at(group).push_back(joint);
 }
 
-void Motion::addGroupToGroup(const std::string &group, const std::string &subgroup)
+bool Motion::addGroupToGroup(const std::string &group, const std::string &subgroup)
 {
   if (joint_groups_.find(group) == joint_groups_.end())
     joint_groups_[group] = {};
 
-  joint_groups_.at(group).insert(joint_groups_.at(group).end(),
-                                 joint_groups_.at(subgroup).begin(),
-                                 joint_groups_.at(subgroup).end());
+  if (joint_groups_.find(subgroup) != joint_groups_.end())
+  {
+    joint_groups_.at(group).insert(joint_groups_.at(group).end(),
+                                   joint_groups_.at(subgroup).begin(),
+                                   joint_groups_.at(subgroup).end());
+    return true;
+  }
+  else
+  {
+    // Subgroup is not yet loaded
+    return false;
+  }
 }
 
 PrintMotion Motion::print(double downshift) const
