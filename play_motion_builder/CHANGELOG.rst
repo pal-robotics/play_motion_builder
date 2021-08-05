@@ -2,8 +2,8 @@
 Changelog for package play_motion_builder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.3 (2021-08-05)
+------------------
 * Merge branch 'unordered_groups' into 'master'
   Allow groups to be loaded in any order
   See merge request apps/play_motion_builder!1
