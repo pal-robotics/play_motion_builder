@@ -2,6 +2,9 @@
 Changelog for package rqt_play_motion_builder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 1.0.2 (2020-10-22)
 ------------------
 
