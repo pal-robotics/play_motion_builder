@@ -54,6 +54,8 @@ endif()
 include_directories(include)
 include_directories(SYSTEM ${CMAKE_CURRENT_BINARY_DIR} ${catkin_INCLUDE_DIRS})
 
+add_compile_options(-std=c++11)
+
 add_library(${PROJECT_NAME}_gui
   src/rqt_play_motion_builder.cpp
   src/properties_dialog.cpp
