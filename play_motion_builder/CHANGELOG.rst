@@ -2,8 +2,8 @@
 Changelog for package play_motion_builder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.0 (2023-11-15)
+------------------
 * Merge branch 'prevent_groups_with_extras' into 'master'
   Groups with joints in the extras list are ignored
   See merge request apps/play_motion_builder!2
