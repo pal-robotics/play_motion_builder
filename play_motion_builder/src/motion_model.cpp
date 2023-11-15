@@ -123,6 +123,12 @@ Motion::Motion(const std::string &robot_description, const std::string &robot_de
                const std::vector<std::string> &extra_joints)
   : tmp_name_("")
 {
+  // Collect "out of group" joints
+  for (const auto &joint : extra_joints)
+  {
+    extra_joints_[joint] = true;
+  }
+
   // Load groups
   if (robot_description != "" && robot_description_semantic != "")
   {
@@ -138,16 +144,6 @@ Motion::Motion(const std::string &robot_description, const std::string &robot_de
         size = group.second.size();
       }
     }
-  }
-
-  // Collect extra joints
-  std::vector<std::string> existing_joints = getAvailableJoints();
-  for (const auto &joint : extra_joints)
-  {
-    // Check that the joint is not already loaded
-    if (std::find(existing_joints.begin(), existing_joints.end(), joint) ==
-        existing_joints.end())
-      extra_joints_[joint] = true;
   }
 }
 
@@ -302,9 +298,10 @@ void Motion::setMotionGroups(const std::string &robot_description,
         for (boost::property_tree::ptree::value_type &joint_att :
              group_child.second.get_child("<xmlattr>"))
         {
-          // Add only actuable joints
+          // Add only actuable joints, that are not present in the extra_joints list
           if (joint_att.first == "name" &&
-              actuable_joints.find(joint_att.second.data()) != actuable_joints.end())
+              actuable_joints.find(joint_att.second.data()) != actuable_joints.end() &&
+              extra_joints_.find(joint_att.second.data()) == extra_joints_.end())
           {
             addJointToGroup(group_name, joint_att.second.data());
             ROS_DEBUG_STREAM("Add joint " << joint_att.second.data() << " to " << group_name);
@@ -332,6 +329,16 @@ void Motion::setMotionGroups(const std::string &robot_description,
   // Process subgroups that weren't loaded in order
   for (const auto &pair : pending_groups_)
     addGroupToGroup(pair.first, pair.second);
+
+  // Clean empty groups
+  std::vector<std::string> groups_to_remove;
+  for (const auto &pair : joint_groups_)
+  {
+    if (pair.second.size() == 0)
+      groups_to_remove.push_back(pair.first);
+  }
+  for (const auto &group: groups_to_remove)
+    joint_groups_.erase(joint_groups_.find(group));
 
   // Add empty group
   joint_groups_["None"] = {};
