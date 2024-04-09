@@ -220,6 +220,33 @@ public:
     if (joint_groups_.find(group) != joint_groups_.end())
     {
       group_used_ = group;
+      for (auto joint : getJoints())
+      {
+        // add joint position from /joint_states
+        sensor_msgs::JointStateConstPtr joint_state =
+            ros::topic::waitForMessage<sensor_msgs::JointState>("/joint_states");
+
+        // test if the name is found in joint_state msg
+        auto joint_names_it =
+            std::find(joint_state->name.begin(), joint_state->name.end(), joint);
+
+        if (joint_names_it != joint_state->name.end())
+        {
+          // get index of joint_state data for name value
+          unsigned int joint_state_name_index = joint_names_it - joint_state->name.begin();
+
+          for (auto& kf : keyframes_)
+          {
+            auto is_name = [&joint](JointPosition& jp) { return jp.joint_name_ == joint; };
+
+            if (std::find_if(kf.getJoints().begin(), kf.getJoints().end(), is_name) ==
+                kf.getJoints().end())
+            {
+              kf.addPosition(joint, joint_state->position[joint_state_name_index]);
+            }
+          }
+        }
+      }
       return true;
     }
     else
