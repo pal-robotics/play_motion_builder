@@ -4,8 +4,8 @@ play_motion:
       joints: [arm_left_joint, arm_right_joint]
       points:
         - time_from_start: 0
-          positions: [0.2, nan]
+          positions: [0.2, 0]
         - time_from_start: 5.5
-          positions: [0.21, nan]
+          positions: [0.21, 0]
         - time_from_start: 7.5
-          positions: [0.22, nan]
+          positions: [0.22, 0]
