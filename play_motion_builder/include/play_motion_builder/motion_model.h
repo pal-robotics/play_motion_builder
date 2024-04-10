@@ -215,36 +215,48 @@ public:
   {
     return group_used_;
   }
-  bool setCurrentGroup(const std::string& group)
+
+  void addJointPositionToNanJointKeyframes(sensor_msgs::JointStateConstPtr joint_state_msg,
+                                           std::string joint_name)
+  {
+    if (joint_state_msg == nullptr)
+      return;
+    // test if the name is found in joint_state msg
+    auto joint_names_it =
+        std::find(joint_state_msg->name.begin(), joint_state_msg->name.end(), joint_name);
+
+    if (joint_names_it != joint_state_msg->name.end())
+    {
+      // get index of joint_state data for name value
+      unsigned int joint_state_name_index = joint_names_it - joint_state_msg->name.begin();
+
+      for (auto& kf : keyframes_)
+      {
+        // If the joint is not yet on the list, add it, and set it's value to the current position
+        if (std::find_if(kf.getJoints().begin(), kf.getJoints().end(),
+                         [&joint_name](JointPosition& jp) {
+                           return jp.joint_name_ == joint_name;
+                         }) == kf.getJoints().end())
+        {
+          kf.addPosition(joint_name, joint_state_msg->position[joint_state_name_index]);
+        }
+      }
+    }
+  }
+
+  bool setCurrentGroup(const std::string& group,
+                       const sensor_msgs::JointStateConstPtr joint_state_msg = nullptr)
   {
     if (joint_groups_.find(group) != joint_groups_.end())
     {
       group_used_ = group;
-      // add joint position from /joint_states
-      sensor_msgs::JointStateConstPtr joint_state =
-          ros::topic::waitForMessage<sensor_msgs::JointState>("/joint_states");
 
-      for (auto joint : getJoints())
+      // verify if some active joints have nan values on current keyframes
+      if (joint_state_msg != nullptr)
       {
-        // test if the name is found in joint_state msg
-        auto joint_names_it =
-            std::find(joint_state->name.begin(), joint_state->name.end(), joint);
-
-        if (joint_names_it != joint_state->name.end())
+        for (auto joint : getJoints())
         {
-          // get index of joint_state data for name value
-          unsigned int joint_state_name_index = joint_names_it - joint_state->name.begin();
-
-          for (auto& kf : keyframes_)
-          {
-            auto is_name = [&joint](JointPosition& jp) { return jp.joint_name_ == joint; };
-
-            if (std::find_if(kf.getJoints().begin(), kf.getJoints().end(), is_name) ==
-                kf.getJoints().end())
-            {
-              kf.addPosition(joint, joint_state->position[joint_state_name_index]);
-            }
-          }
+          addJointPositionToNanJointKeyframes(joint_state_msg, joint);
         }
       }
       return true;
@@ -265,43 +277,17 @@ public:
     else
       return false;
   }
-  bool setExtraJointUsedState(const std::string& name, bool used)
+  bool setExtraJointUsedState(const std::string& name, bool used,
+                              sensor_msgs::JointStateConstPtr joint_state_msg = nullptr)
   {
     if (extra_joints_.find(name) != extra_joints_.end())
     {
       extra_joints_[name] = used;
 
-      if (used)
+      // verify if some active joints have nan values on current keyframes
+      if (joint_state_msg != nullptr && used)
       {
-        // add joint position from /joint_states
-        sensor_msgs::JointStateConstPtr joint_state =
-            ros::topic::waitForMessage<sensor_msgs::JointState>("/joint_states");
-
-        // test if the name is found in joint_state msg
-        auto joint_names_it =
-            std::find(joint_state->name.begin(), joint_state->name.end(), name);
-
-        if (joint_names_it != joint_state->name.end())
-        {
-          // get index of joint_state data for name value
-          unsigned int joint_state_name_index = joint_names_it - joint_state->name.begin();
-
-          for (auto& kf : keyframes_)
-          {
-            auto is_name = [&name](JointPosition& jp) { return jp.joint_name_ == name; };
-
-            if (std::find_if(kf.getJoints().begin(), kf.getJoints().end(), is_name) ==
-                kf.getJoints().end())
-            {
-              kf.addPosition(name, joint_state->position[joint_state_name_index]);
-            }
-          }
-        }
-        else
-        {
-          std::cerr << "Did not found joint name index in /joint_state message" << std::endl;
-          return false;
-        }
+        addJointPositionToNanJointKeyframes(joint_state_msg, name);
       }
 
       return true;
