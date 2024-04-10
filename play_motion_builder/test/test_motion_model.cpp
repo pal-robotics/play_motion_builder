@@ -3,9 +3,6 @@
 #include <gtest/gtest.h>
 #include <fstream>
 
-#include <actionlib/client/simple_action_client.h>
-#include <sensor_msgs/JointState.h>
-
 namespace pal
 {
 TEST(MotionBuilderModelTest, jointLimitTest)
