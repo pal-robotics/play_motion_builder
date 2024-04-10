@@ -220,12 +220,12 @@ public:
     if (joint_groups_.find(group) != joint_groups_.end())
     {
       group_used_ = group;
+      // add joint position from /joint_states
+      sensor_msgs::JointStateConstPtr joint_state =
+          ros::topic::waitForMessage<sensor_msgs::JointState>("/joint_states");
+
       for (auto joint : getJoints())
       {
-        // add joint position from /joint_states
-        sensor_msgs::JointStateConstPtr joint_state =
-            ros::topic::waitForMessage<sensor_msgs::JointState>("/joint_states");
-
         // test if the name is found in joint_state msg
         auto joint_names_it =
             std::find(joint_state->name.begin(), joint_state->name.end(), joint);
