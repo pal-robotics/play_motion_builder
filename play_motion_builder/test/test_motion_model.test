@@ -1,6 +1,8 @@
 <launch>
   <rosparam command="load" file="$(find play_motion_builder)/test/test_motion_model.yaml" />
   <param name="test_file_path" value="$(find play_motion_builder)/test/test_motion_model.yaml"/>
+  <node pkg="rostopic" type="rostopic" name="joint_state_publisher" args="pub /joint_states sensor_msgs/JointState -r 5 '{header: {stamp: now, frame_id: ''}, name: ['arm_left_joint', 'arm_right_joint', 'head_joint'], position: [0.0, 0.0, 0.0]}'" output="screen"/>
+
 
   <test test-name="test_motion_model" pkg="play_motion_builder" type="test_motion_model"/>
 </launch>

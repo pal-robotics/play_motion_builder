@@ -8,58 +8,6 @@
 
 namespace pal
 {
-class TestBot
-{
-public:
-  TestBot() : as_(1, &queue_)
-  {
-    nh_.setCallbackQueue(&queue_);
-
-    joints_["arm_left_joint"] = 0.0;
-    joints_["arm_right_joint"] = 0.0;
-    joints_["head_joint"] = 0.0;
-
-    joint_pub_ = nh_.advertise<sensor_msgs::JointState>("/joint_states", 1);
-    timer_ = nh_.createTimer(ros::Duration(0.05), &TestBot::timerCb, this);
-
-    as_.start();
-  }
-
-  void changeJointPos(double left_arm, double right_arm, double head)
-  {
-    std::lock_guard<std::mutex> lock(joint_mutex_);
-
-    joints_["arm_left_joint"] = left_arm;
-    joints_["arm_right_joint"] = right_arm;
-    joints_["head_joint"] = head;
-  }
-
-private:
-  ros::NodeHandle nh_;
-  ros::CallbackQueue queue_;
-  ros::AsyncSpinner as_;
-
-  ros::Publisher joint_pub_;
-  ros::Timer timer_;
-
-  std::unordered_map<std::string, double> joints_;
-  std::mutex joint_mutex_;
-
-  void timerCb(const ros::TimerEvent&)
-  {
-    sensor_msgs::JointState js;
-    js.header.stamp = ros::Time::now();
-    {
-      std::lock_guard<std::mutex> lock(joint_mutex_);
-      for (const auto& joint : joints_)
-      {
-        js.name.push_back(joint.first);
-        js.position.push_back(joint.second);
-      }
-    }
-    joint_pub_.publish(js);
-  }
-};
 TEST(MotionBuilderModelTest, jointLimitTest)
 {
   JointModel jm;              // Empty constructor defined
@@ -133,7 +81,6 @@ TEST(MotionBuilderModelTest, keyframeTest)
 
 TEST(MotionBuilderModelTest, motionTest)
 {
-  TestBot tb;
   Motion m("", "", {});
 
   // Test loading joints
@@ -352,7 +299,6 @@ TEST(MotionBuilderModelTest, motionFromParamTest)
 {
   XmlRpc::XmlRpcValue param_to_load;
   ros::NodeHandle nh;
-  TestBot tb;
   nh.getParam("/play_motion/motions/test_motion", param_to_load);
 
   ASSERT_EQ(XmlRpc::XmlRpcValue::TypeStruct, param_to_load.getType());
