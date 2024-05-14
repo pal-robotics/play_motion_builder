@@ -215,11 +215,50 @@ public:
   {
     return group_used_;
   }
-  bool setCurrentGroup(const std::string& group)
+
+  void addJointPositionToNanJointKeyframes(sensor_msgs::JointStateConstPtr joint_state_msg,
+                                           std::string joint_name)
+  {
+    if (joint_state_msg == nullptr)
+      return;
+    // test if the name is found in joint_state msg
+    auto joint_names_it =
+        std::find(joint_state_msg->name.begin(), joint_state_msg->name.end(), joint_name);
+
+    if (joint_names_it != joint_state_msg->name.end())
+    {
+      // get index of joint_state data for name value
+      unsigned int joint_state_name_index = joint_names_it - joint_state_msg->name.begin();
+
+      for (auto& kf : keyframes_)
+      {
+        // If the joint is not yet on the list, add it, and set it's value to the current position
+        if (std::find_if(kf.getJoints().begin(), kf.getJoints().end(),
+                         [&joint_name](JointPosition& jp) {
+                           return jp.joint_name_ == joint_name;
+                         }) == kf.getJoints().end())
+        {
+          kf.addPosition(joint_name, joint_state_msg->position[joint_state_name_index]);
+        }
+      }
+    }
+  }
+
+  bool setCurrentGroup(const std::string& group,
+                       const sensor_msgs::JointStateConstPtr joint_state_msg = nullptr)
   {
     if (joint_groups_.find(group) != joint_groups_.end())
     {
       group_used_ = group;
+
+      // verify if some active joints have nan values on current keyframes
+      if (joint_state_msg != nullptr)
+      {
+        for (auto joint : getJoints())
+        {
+          addJointPositionToNanJointKeyframes(joint_state_msg, joint);
+        }
+      }
       return true;
     }
     else
@@ -238,11 +277,19 @@ public:
     else
       return false;
   }
-  bool setExtraJointUsedState(const std::string& name, bool used)
+  bool setExtraJointUsedState(const std::string& name, bool used,
+                              sensor_msgs::JointStateConstPtr joint_state_msg = nullptr)
   {
     if (extra_joints_.find(name) != extra_joints_.end())
     {
       extra_joints_[name] = used;
+
+      // verify if some active joints have nan values on current keyframes
+      if (joint_state_msg != nullptr && used)
+      {
+        addJointPositionToNanJointKeyframes(joint_state_msg, name);
+      }
+
       return true;
     }
     else

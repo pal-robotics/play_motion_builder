@@ -270,10 +270,17 @@ bool ROSMotionBuilderNode::changeJointsCb(play_motion_builder_msgs::ChangeJoints
   {
     res.ok = true;
 
+    // add joint position from /joint_states
+    sensor_msgs::JointStateConstPtr joint_state_msg =
+        ros::topic::waitForMessage<sensor_msgs::JointState>("joint_states", ros::Duration(5.0));
+    if (joint_state_msg == nullptr)
+    {
+      ROS_WARN("Could not receive message from joint_states topic");
+    }
     // Change used group
     if (req.group != "")
     {
-      if (!motion_->setCurrentGroup(req.group))
+      if (!motion_->setCurrentGroup(req.group, joint_state_msg))
       {
         res.ok = false;
         res.message = "Couldn't change group to " + req.group + ". ";
@@ -298,7 +305,7 @@ bool ROSMotionBuilderNode::changeJointsCb(play_motion_builder_msgs::ChangeJoints
       for (const auto &joint : req.joints_to_add)
       {
         // Set joint to used
-        if (!motion_->setExtraJointUsedState(joint, true))
+        if (!motion_->setExtraJointUsedState(joint, true, joint_state_msg))
         {
           res.ok = false;
           res.message += "Couldn't add extra joint " + joint + ". ";
