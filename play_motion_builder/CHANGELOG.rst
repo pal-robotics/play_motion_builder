@@ -2,8 +2,8 @@
 Changelog for package play_motion_builder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.2.0 (2024-05-14)
+------------------
 * Merge branch 'fix/nan-value-bug' into 'master'
   Fix/nan value bug
   See merge request apps/play_motion_builder!4
