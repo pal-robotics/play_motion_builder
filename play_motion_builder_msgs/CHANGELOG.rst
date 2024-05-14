@@ -2,6 +2,9 @@
 Changelog for package play_motion_builder_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 1.1.0 (2023-11-15)
 ------------------
 
