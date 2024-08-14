@@ -1,45 +1,24 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.8)
 project(play_motion_builder_msgs)
 
-add_compile_options(-std=c++11)
+find_package(ament_cmake REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
-find_package(catkin REQUIRED COMPONENTS message_generation actionlib_msgs)
-
-################################################
-## Declare ROS messages, services and actions ##
-################################################
-
-## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  Frame.msg
-  Motion.msg
-  Meta.msg
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "action/BuildMotion.action"
+  "action/RunMotion.action"
+  "msg/Frame.msg"
+  "msg/Meta.msg"
+  "msg/Motion.msg"
+  "srv/ChangeJoints.srv"
+  "srv/EditMotion.srv"
+  "srv/ListJointGroups.srv"
+  "srv/StoreMotion.srv"
+  DEPENDENCIES builtin_interfaces
+  ADD_LINTER_TESTS
 )
 
-## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  EditMotion.srv
-  StoreMotion.srv
-  ChangeJoints.srv
-  ListJointGroups.srv
-)
+ament_export_dependencies(rosidl_default_runtime)
 
-## Generate actions in the 'action' folder
-add_action_files(
-  FILES
-  BuildMotion.action
-  RunMotion.action
-)
-
-## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  actionlib_msgs
-)
-
-###################################
-## catkin specific configuration ##
-###################################
-catkin_package(CATKIN_DEPENDS message_runtime actionlib_msgs)
+ament_package()
