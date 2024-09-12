@@ -1,33 +1,39 @@
-#include <rqt_play_motion_builder/rqt_play_motion_builder.h>
-
-#include <play_motion_builder_msgs/ListJointGroups.h>
-#include <play_motion_builder_msgs/ChangeJoints.h>
-
 #include <QCheckBox>
 #include <QRadioButton>
 #include <QMessageBox>
 #include <QInputDialog>
 
-#include <pluginlib/class_list_macros.h>
+
+#include "play_motion_builder_msgs/srv/list_joint_groups.hpp"
+#include "play_motion_builder_msgs/srv/change_joints.hpp"
+
+#include "rclcpp_action/create_client.hpp"
+
+#include "rqt_play_motion_builder/rqt_play_motion_builder.hpp"
+
 
 #define JOINT_PRECISION 4
 #define TIME_PRECISION 2
 
-namespace pal
+using std::placeholders::_1;
+using namespace std::chrono_literals;
+const auto kTimeout = 10s;
+
+namespace rqt_play_motion_builder
 {
-const std::string RQTPlayMotionBuilder::GOTO_MENU = "Go To Position";
-const std::string RQTPlayMotionBuilder::DELETE_MENU = "Delete";
-const std::string RQTPlayMotionBuilder::SET_TO_CURRENT_MENU = "Recapture frame";
-const std::string RQTPlayMotionBuilder::COPY_BELOW_MENU = "Copy Below";
-const std::string RQTPlayMotionBuilder::COPY_LAST_MENU = "Copy as Last";
+const char RQTPlayMotionBuilder::GOTO_MENU[] = "Go To Position";
+const char RQTPlayMotionBuilder::DELETE_MENU[] = "Delete";
+const char RQTPlayMotionBuilder::SET_TO_CURRENT_MENU[] = "Recapture frame";
+const char RQTPlayMotionBuilder::COPY_BELOW_MENU[] = "Copy Below";
+const char RQTPlayMotionBuilder::COPY_LAST_MENU[] = "Copy as Last";
 
 RQTPlayMotionBuilder::RQTPlayMotionBuilder()
-  : rqt_gui_cpp::Plugin(), widget_(0), editing_(false), updating_list_(false), editing_motion_("")
+: rqt_gui_cpp::Plugin(), widget_(0), editing_(false), updating_list_(false), editing_motion_("")
 {
   setObjectName("RQTPlayMotionBuilder");
 }
 
-void RQTPlayMotionBuilder::initPlugin(qt_gui_cpp::PluginContext &context)
+void RQTPlayMotionBuilder::initPlugin(qt_gui_cpp::PluginContext & context)
 {
   // create QWidget
   widget_ = new QWidget();
@@ -35,14 +41,14 @@ void RQTPlayMotionBuilder::initPlugin(qt_gui_cpp::PluginContext &context)
   ui_.setupUi(widget_);
   // Prepare group scroll area
   // Prepare scroll area
-  QWidget *g_scroll_w = new QWidget();
-  QVBoxLayout *g_scroll_l = new QVBoxLayout();
+  QWidget * g_scroll_w = new QWidget();
+  QVBoxLayout * g_scroll_l = new QVBoxLayout();
   g_scroll_w->setLayout(g_scroll_l);
   ui_.group_area_->setWidget(g_scroll_w);
   ui_.group_area_->setWidgetResizable(true);
   // Prepare joint scroll area
-  QWidget *scroll_w = new QWidget();
-  QVBoxLayout *scroll_l = new QVBoxLayout();
+  QWidget * scroll_w = new QWidget();
+  QVBoxLayout * scroll_l = new QVBoxLayout();
   scroll_w->setLayout(scroll_l);
   ui_.joint_area_->setWidget(scroll_w);
   ui_.joint_area_->setWidgetResizable(true);
@@ -56,8 +62,9 @@ void RQTPlayMotionBuilder::initPlugin(qt_gui_cpp::PluginContext &context)
   connect(ui_.capture_btn_, SIGNAL(pressed()), this, SLOT(onCaptureClicked()));
   connect(ui_.play_btn_, SIGNAL(pressed()), this, SLOT(onPlayClicked()));
   connect(ui_.save_btn_, SIGNAL(pressed()), this, SLOT(onSaveClicked()));
-  connect(ui_.movement_table_, SIGNAL(cellChanged(int, int)), this,
-          SLOT(onCellChanged(int, int)));
+  connect(
+    ui_.movement_table_, SIGNAL(cellChanged(int,int)), this,
+    SLOT(onCellChanged(int,int)));
 
   // Set up context menu
   ui_.movement_table_->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -69,8 +76,9 @@ void RQTPlayMotionBuilder::initPlugin(qt_gui_cpp::PluginContext &context)
   table_menu_.addAction(QString::fromStdString(COPY_LAST_MENU));
   table_menu_.addSeparator();
   table_menu_.addAction(QString::fromStdString(DELETE_MENU));
-  connect(ui_.movement_table_, SIGNAL(customContextMenuRequested(const QPoint &)), this,
-          SLOT(onContextMenuRequested(const QPoint &)));
+  connect(
+    ui_.movement_table_, SIGNAL(customContextMenuRequested(const QPoint&)), this,
+    SLOT(onContextMenuRequested(const QPoint&)));
 
   connect(this, SIGNAL(goToSelected(int)), this, SLOT(onGotoSelected(int)));
   connect(this, SIGNAL(deleteSelected(int)), this, SLOT(onDeleteSelected(int)));
@@ -81,185 +89,336 @@ void RQTPlayMotionBuilder::initPlugin(qt_gui_cpp::PluginContext &context)
   connect(ui_.new_btn_, SIGNAL(pressed()), this, SLOT(onNewPressed()));
   connect(ui_.load_btn_, SIGNAL(pressed()), this, SLOT(onLoadPressed()));
 
-  connect(properties_dialog_, SIGNAL(motionStored(QString)), this,
-          SLOT(onMotionStored(QString)));
+  connect(
+    properties_dialog_, SIGNAL(motionStored(QString)), this,
+    SLOT(onMotionStored(QString)));
 
   // Connect action client
-  builder_client_.reset(new BMAC(getNodeHandle(), "/play_motion_builder_node/build"));
-  run_motion_client_.reset(new RMAC(getNodeHandle(), "/play_motion_builder_node/run"));
-  list_joints_client_ = getNodeHandle().serviceClient<play_motion_builder_msgs::ListJointGroups>(
-      "/play_motion_builder_node/list_joint_groups");
-  edit_motion_client_ = getNodeHandle().serviceClient<play_motion_builder_msgs::EditMotion>(
-      "/play_motion_builder_node/edit_motion");
-  change_joints_client_ = getNodeHandle().serviceClient<play_motion_builder_msgs::ChangeJoints>(
-      "/play_motion_builder_node/change_joints");
-  properties_dialog_->init(getNodeHandle());
+  builder_client_ = rclcpp_action::create_client<BuildMotion>(node_, "/play_motion_builder/build");
+  run_motion_client_ = rclcpp_action::create_client<RunMotion>(node_, "/play_motion_builder/run");
+
+  list_joints_client_ = node_->create_client<ListJointGroups>(
+    "/play_motion_builder/list_joint_groups");
+  edit_motion_client_ = node_->create_client<EditMotion>("/play_motion_builder/edit_motion");
+  change_joints_client_ = node_->create_client<ChangeJoints>("/play_motion_builder/change_joints");
+
+  motion_info_client_ = node_->create_client<GetMotionInfo>("/play_motion2/get_motion_info");
+  list_motions_client_ = node_->create_client<ListMotions>("/play_motion2/list_motions");
+
+  properties_dialog_->init(node_);
 }
 
 void RQTPlayMotionBuilder::shutdownPlugin()
 {
-  if (editing_)
-  {
-    builder_client_->cancelAllGoals();
+  if (editing_) {
+    builder_client_->async_cancel_all_goals();
   }
 }
 
 void RQTPlayMotionBuilder::onNewPressed()
 {
-  if (!builder_client_->waitForServer(ros::Duration(5.0)))
-  {
-    ROS_ERROR_STREAM("Couldn't contact builder server");
+  if (!builder_client_->wait_for_action_server(kTimeout)) {
+    RCLCPP_ERROR(node_->get_logger(), "Action server for building motions not available");
+    return;
   }
-  else
-  {
-    play_motion_builder_msgs::BuildMotionGoal goal;  // Empty goal for new motion
-    builder_client_->sendGoal(goal);
-    editing_ = true;
-    enableBtns();
-    ros::Duration(0.1).sleep();  // Wait for a bit
 
-    play_motion_builder_msgs::ListJointGroups ljg_service;
-    if (list_joints_client_.call(ljg_service))
-    {
-      qDeleteAll(ui_.group_area_->widget()->findChildren<QWidget *>());
-      // Load Group table
-      for (const auto &group : ljg_service.response.groups)
-      {
-        // Load joint table
-        QRadioButton *jsc = new QRadioButton();
-        jsc->setChecked(false);
-        jsc->setProperty("group_name", QString::fromStdString(group));
-        connect(jsc, SIGNAL(toggled(bool)), this, SLOT(onGroupToggled(bool)));
-        jsc->setText(QString::fromStdString(group));
-        ui_.group_area_->widget()->layout()->addWidget(jsc);
-        ROS_DEBUG_STREAM("Group found: " << group);
-      }
-      qDeleteAll(ui_.joint_area_->widget()->findChildren<QWidget *>());
-      for (const auto &joint : ljg_service.response.additional_joints)
-      {
-        // Load joint table
-        QCheckBox *jsc = new QCheckBox();
-        jsc->setChecked(false);
-        jsc->setProperty("joint_name", QString::fromStdString(joint));
-        connect(jsc, SIGNAL(toggled(bool)), this, SLOT(onJointToggled(bool)));
-        jsc->setText(QString::fromStdString(joint));
-        ui_.joint_area_->widget()->layout()->addWidget(jsc);
-        ROS_DEBUG_STREAM("Extra joint found: " << joint);
-      }
+  BuildMotion::Goal goal;  // Empty goal for new motion
+  goal.motion = "";
 
-      play_motion_builder_msgs::EditMotion em;
-      em.request.action = play_motion_builder_msgs::EditMotion::Request::LIST;
-      if (edit_motion_client_.call(em))
-      {
-        if (em.response.ok)
-        {
-          loadMotion(em.response.motion);
-          editing_motion_ = "";
-        }
-        else
-        {
-          ROS_ERROR_STREAM("ERROR: " << em.response.message);
-        }
-      }
-      else
-      {
-        ROS_ERROR_STREAM("There was an error contacting the edit motion service");
-      }
+  auto build_future = builder_client_->async_send_goal(goal);
+
+  // wait for goal to be sent
+  auto start_time = node_->now();
+  while (build_future.wait_for(10ms) != std::future_status::ready) {
+    if (node_->now() - start_time > kTimeout) {
+      RCLCPP_ERROR_STREAM(node_->get_logger(), "Error while creating new motion");
+      return;
     }
+  }
+
+  auto goal_handle = build_future.get();
+  if (!goal_handle) {
+    RCLCPP_ERROR(node_->get_logger(), "Goal rejected by builder server");
+    return;
+  }
+
+  auto result_future = builder_client_->async_get_result(goal_handle);
+  start_time = node_->now();
+  while (result_future.wait_for(10ms) != std::future_status::ready) {
+    if (node_->now() - start_time > kTimeout) {
+      RCLCPP_ERROR_STREAM(node_->get_logger(), "Error while creating new motion");
+      return;
+    }
+  }
+
+  auto result = result_future.get();
+  if (result.code != rclcpp_action::ResultCode::SUCCEEDED) {
+    RCLCPP_ERROR(node_->get_logger(), "Error while creating new motion");
+    return;
+  }
+
+  editing_ = true;
+  enableBtns();
+
+  // Load joint groups
+  auto ljg = std::make_shared<ListJointGroups::Request>();
+  auto ljg_future = list_joints_client_->async_send_request(ljg);
+
+  start_time = node_->now();
+  while (ljg_future.wait_for(10ms) != std::future_status::ready) {
+    if (node_->now() - start_time > kTimeout) {
+      RCLCPP_ERROR_STREAM(node_->get_logger(), "Error while changing joints");
+      return;
+    }
+  }
+
+  auto ljg_response = ljg_future.get();
+  qDeleteAll(ui_.group_area_->widget()->findChildren<QWidget *>());
+  for (const auto & group : ljg_response->groups) {
+    // Load joint table
+    QRadioButton * jsc = new QRadioButton();
+    jsc->setChecked(false);
+    jsc->setProperty("group_name", QString::fromStdString(group));
+    connect(jsc, SIGNAL(toggled(bool)), this, SLOT(onGroupToggled(bool)));
+    jsc->setText(QString::fromStdString(group));
+    ui_.group_area_->widget()->layout()->addWidget(jsc);
+    RCLCPP_DEBUG_STREAM(node_->get_logger(), "Group found: " << group);
+  }
+  qDeleteAll(ui_.joint_area_->widget()->findChildren<QWidget *>());
+  for (const auto & joint : ljg_response->additional_joints) {
+    // Load joint table
+    QCheckBox * jsc = new QCheckBox();
+    jsc->setChecked(false);
+    jsc->setProperty("joint_name", QString::fromStdString(joint));
+    connect(jsc, SIGNAL(toggled(bool)), this, SLOT(onJointToggled(bool)));
+    jsc->setText(QString::fromStdString(joint));
+    ui_.joint_area_->widget()->layout()->addWidget(jsc);
+    RCLCPP_DEBUG_STREAM(node_->get_logger(), "Extra joint found: " << joint);
+  }
+
+  auto edit_result = editMotion(play_motion_builder_msgs::srv::EditMotion::Request::LIST);
+  if (edit_result) {
+    if (edit_result->ok) {
+      loadMotion(edit_result->motion);
+      editing_motion_ = "";
+    } else {
+      RCLCPP_ERROR_STREAM(node_->get_logger(), "ERROR: " << edit_result->message);
+    }
+  } else {
+    RCLCPP_ERROR_STREAM(
+      node_->get_logger(),
+      "There was an error contacting the edit motion service");
   }
 }
 
-void RQTPlayMotionBuilder::loadMotion(const play_motion_builder_msgs::Motion &motion)
+void RQTPlayMotionBuilder::loadMotion(const play_motion_builder_msgs::msg::Motion & motion)
 {
   updating_list_ = true;
-  ROS_DEBUG_STREAM("Begin motion loading");
+  RCLCPP_DEBUG_STREAM(node_->get_logger(), "Begin motion loading");
   // Select group
-  ROS_DEBUG_STREAM("Using group " << motion.used_group);
-  for (auto &group : ui_.group_area_->widget()->findChildren<QRadioButton *>())
-  {
-    if (group->property("group_name").toString().toStdString() == motion.used_group)
-    {
-      ROS_DEBUG_STREAM("Changing group " << motion.used_group);
+  RCLCPP_DEBUG_STREAM(node_->get_logger(), "Using group " << motion.used_group);
+  for (auto & group : ui_.group_area_->widget()->findChildren<QRadioButton *>()) {
+    if (group->property("group_name").toString().toStdString() == motion.used_group) {
+      RCLCPP_DEBUG_STREAM(node_->get_logger(), "Changing group " << motion.used_group);
       group->setChecked(true);
-      continue;  // Motion will be reloaded in reaction to the group change
+      continue;   // Motion will be reloaded in reaction to the group change
     }
   }
 
   // Generate headers
-  ROS_DEBUG_STREAM("Set headers");
+  RCLCPP_DEBUG_STREAM(node_->get_logger(), "Set headers");
   ui_.movement_table_->setColumnCount(motion.joints.size() + 1);
   // Prepare table headers
   QStringList headers;
   headers << QString("Time");
-  for (const auto &joint : motion.joints)
-  {
+  for (const auto & joint : motion.joints) {
     headers << QString::fromStdString(joint.substr(0, joint.size() - 6));
-    ROS_DEBUG_STREAM("Joint found: " << joint);
+    RCLCPP_DEBUG_STREAM(node_->get_logger(), "Joint found: " << joint);
   }
   ui_.movement_table_->setHorizontalHeaderLabels(headers);
   // Fully reload the table to get the proper column order
   ui_.movement_table_->setRowCount(0);
 
   // Check which extra joints are used
-  for (auto &extra_joint : ui_.joint_area_->widget()->findChildren<QCheckBox *>())
-  {
-    if (std::find(motion.joints.begin(), motion.joints.end(),
-                  extra_joint->property("joint_name").toString().toStdString()) !=
-        motion.joints.end())
+  for (auto & extra_joint : ui_.joint_area_->widget()->findChildren<QCheckBox *>()) {
+    if (std::find(
+        motion.joints.begin(), motion.joints.end(),
+        extra_joint->property("joint_name").toString().toStdString()) !=
+      motion.joints.end())
     {
       extra_joint->setChecked(true);
-      ROS_DEBUG_STREAM("Changing extra joint state "
-                       << extra_joint->property("joint_name").toString().toStdString());
+      RCLCPP_DEBUG_STREAM(
+        node_->get_logger(),
+        "Changing extra joint state "
+          << extra_joint->property("joint_name").toString().toStdString());
     }
   }
 
   ui_.movement_table_->setRowCount(motion.keyframes.size());
-  for (unsigned int i = 0; i < motion.keyframes.size(); ++i)
-  {
-    ROS_DEBUG_STREAM("Processing keyframe " << i);
+  for (unsigned int i = 0; i < motion.keyframes.size(); ++i) {
+    RCLCPP_DEBUG_STREAM(node_->get_logger(), "Processing keyframe " << i);
     // Time
-    QTableWidgetItem *time_item =
-        new QTableWidgetItem(QString::number(motion.keyframes[i].time_from_last, 'f', 2));
+    QTableWidgetItem * time_item =
+      new QTableWidgetItem(QString::number(motion.keyframes[i].time_from_last, 'f', 2));
     ui_.movement_table_->setItem(i, 0, time_item);
 
-
     // Add joints in proper order
-    for (int j = 1; j < ui_.movement_table_->columnCount(); ++j)
-    {
-      ROS_DEBUG_STREAM("Processing joint " << j);
-      QTableWidgetItem *joint_position_item = new QTableWidgetItem(QString::number(
-          getJointPosition(motion.joints, motion.keyframes[i].pose,
-                           ui_.movement_table_->horizontalHeaderItem(j)->text().toStdString()),
+    for (int j = 1; j < ui_.movement_table_->columnCount(); ++j) {
+      RCLCPP_DEBUG_STREAM(node_->get_logger(), "Processing joint " << j);
+      QTableWidgetItem * joint_position_item = new QTableWidgetItem(
+        QString::number(
+          getJointPosition(
+            motion.joints, motion.keyframes[i].pose,
+            ui_.movement_table_->horizontalHeaderItem(j)->text().toStdString()),
           'f', JOINT_PRECISION));
-      joint_position_item->setFlags(joint_position_item->flags() ^ Qt::ItemIsEditable);  // Non-editable
+      joint_position_item->setFlags(joint_position_item->flags() ^ Qt::ItemIsEditable);   // Non-editable
 
       ui_.movement_table_->setItem(i, j, joint_position_item);
     }
   }
 
   updating_list_ = false;
-  ROS_DEBUG_STREAM("Motion loaded");
+  RCLCPP_DEBUG_STREAM(node_->get_logger(), "Motion loaded");
 }
+
+play_motion_builder_msgs::srv::EditMotion::Response::SharedPtr
+RQTPlayMotionBuilder::editMotion(const uint8_t action, const uint16_t step_id, const float time)
+{
+  if (!edit_motion_client_->wait_for_service(kTimeout)) {
+    if (!rclcpp::ok()) {
+      RCLCPP_ERROR(node_->get_logger(), "rclcpp interrupted while waiting for the service.");
+    } else {
+      RCLCPP_ERROR_STREAM(
+        node_->get_logger(), "There was an error contacting the edit motion service");
+    }
+    return nullptr;
+  }
+  auto em = std::make_shared<EditMotion::Request>();
+  em->action = action;
+  em->step_id = step_id;
+  em->time = time;
+
+  auto future = edit_motion_client_->async_send_request(em);
+
+  const auto start_time = node_->now();
+  while (future.wait_for(10ms) != std::future_status::ready) {
+    if (node_->now() - start_time > kTimeout) {
+      RCLCPP_ERROR_STREAM(node_->get_logger(), "Error while editing motion");
+      return nullptr;
+    }
+  }
+
+  auto result = future.get();
+  if (!result->ok) {
+    RCLCPP_ERROR_STREAM(node_->get_logger(), "ERROR: " << result->message);
+  }
+  return result;
+}
+
+void RQTPlayMotionBuilder::changeJoints(
+  const std::string & group,
+  const std::vector<std::string> & joints_to_remove,
+  const std::vector<std::string> & joints_to_add)
+{
+  if (!change_joints_client_->wait_for_service(kTimeout)) {
+    if (!rclcpp::ok()) {
+      RCLCPP_ERROR(node_->get_logger(), "rclcpp interrupted while waiting for the service.");
+    } else {
+      RCLCPP_ERROR_STREAM(
+        node_->get_logger(), "There was an error contacting the change joints service");
+    }
+    return;
+  }
+  auto cj = std::make_shared<ChangeJoints::Request>();
+  cj->group = group;
+  cj->joints_to_add = joints_to_add;
+  cj->joints_to_remove = joints_to_remove;
+
+  auto future = change_joints_client_->async_send_request(cj);
+  const auto start_time = node_->now();
+  while (future.wait_for(10ms) != std::future_status::ready) {
+    if (node_->now() - start_time > kTimeout) {
+      RCLCPP_ERROR_STREAM(node_->get_logger(), "Error while changing joints");
+      return;
+    }
+  }
+
+  auto result = future.get();
+  if (!result->ok) {
+    RCLCPP_ERROR_STREAM(node_->get_logger(), "ERROR: " << result->message);
+  } else {
+    listMotion();
+  }
+}
+
+play_motion2_msgs::msg::Motion
+RQTPlayMotionBuilder::getMotionInfo(const std::string & motion_key)
+{
+  play_motion2_msgs::msg::Motion motion;
+  if (!motion_info_client_->wait_for_service(kTimeout)) {
+    if (!rclcpp::ok()) {
+      RCLCPP_ERROR(node_->get_logger(), "rclcpp interrupted while waiting for the service.");
+    } else {
+      RCLCPP_ERROR_STREAM(
+        node_->get_logger(),
+        "There was an error contacting with the" << motion_info_client_->get_service_name() <<
+          " service");
+    }
+    return motion;
+  }
+
+  auto gmi = std::make_shared<GetMotionInfo::Request>();
+  gmi->motion_key = motion_key;
+
+  auto future = motion_info_client_->async_send_request(gmi);
+  const auto start_time = node_->now();
+  while (future.wait_for(10ms) != std::future_status::ready) {
+    if (node_->now() - start_time > kTimeout) {
+      RCLCPP_ERROR_STREAM(node_->get_logger(), "Error while getting motin info");
+      return motion;
+    }
+  }
+
+  auto result = future.get();
+  return result->motion;
+}
+
+std::vector<std::string> RQTPlayMotionBuilder::getMotionsList()
+{
+  if (!list_motions_client_->wait_for_service(kTimeout)) {
+    if (!rclcpp::ok()) {
+      RCLCPP_ERROR(node_->get_logger(), "rclcpp interrupted while waiting for the service.");
+    } else {
+      RCLCPP_ERROR_STREAM(
+        node_->get_logger(),
+        "There was an error contacting with the" << list_motions_client_->get_service_name() <<
+          " service");
+    }
+    return {};
+  }
+
+  auto lm = std::make_shared<ListMotions::Request>();
+  auto future = list_motions_client_->async_send_request(lm);
+
+  const auto start_time = node_->now();
+  while (future.wait_for(10ms) != std::future_status::ready) {
+    if (node_->now() - start_time > kTimeout) {
+      RCLCPP_ERROR_STREAM(node_->get_logger(), "Error listing motions");
+      return {};
+    }
+  }
+
+  auto result = future.get();
+  return result->motion_keys;
+}
+
 
 void RQTPlayMotionBuilder::listMotion()
 {
-  play_motion_builder_msgs::EditMotion em;
-  em.request.action = play_motion_builder_msgs::EditMotion::Request::LIST;
-  if (edit_motion_client_.call(em))
-  {
-    if (em.response.ok)
-    {
-      ROS_DEBUG_STREAM("List current motion");
-      loadMotion(em.response.motion);
-    }
-    else
-    {
-      ROS_ERROR_STREAM("ERROR: " << em.response.message);
-    }
-  }
-  else
-  {
-    ROS_ERROR_STREAM("There was an error contacting the edit motion service");
+  auto result = editMotion(EditMotion::Request::LIST);
+  if (result && result->ok) {
+    RCLCPP_DEBUG_STREAM(node_->get_logger(), "List current motion");
+    loadMotion(result->motion);
   }
 }
 
@@ -280,20 +439,34 @@ void RQTPlayMotionBuilder::disableBtns()
   ui_.save_btn_->setEnabled(false);
 }
 
-void RQTPlayMotionBuilder::runDone(const actionlib::SimpleClientGoalState &,
-                               const play_motion_builder_msgs::RunMotionResultConstPtr &)
+void RQTPlayMotionBuilder::runDone(
+  const rclcpp_action::ClientGoalHandle<RunMotion>::WrappedResult & result)
 {
+  switch (result.code) {
+    case rclcpp_action::ResultCode::SUCCEEDED:
+      break;
+    case rclcpp_action::ResultCode::ABORTED:
+      RCLCPP_ERROR(node_->get_logger(), "Motion was aborted");
+      return;
+    case rclcpp_action::ResultCode::CANCELED:
+      RCLCPP_ERROR(node_->get_logger(), "Motion was canceled");
+      return;
+    default:
+      RCLCPP_ERROR(node_->get_logger(), "Unknown result code");
+      return;
+  }
   enableBtns();
 }
 
-double RQTPlayMotionBuilder::getJointPosition(const std::vector<std::string> &joints,
-                                          const std::vector<double> &poses,
-                                          const std::string &joint_header)
+double RQTPlayMotionBuilder::getJointPosition(
+  const std::vector<std::string> & joints,
+  const std::vector<double> & poses,
+  const std::string & joint_header)
 {
-  for (unsigned int i = 0; i < joints.size(); ++i)
-  {
-    if (joints[i] == joint_header + "_joint")
+  for (unsigned int i = 0; i < joints.size(); ++i) {
+    if (joints[i] == joint_header + "_joint") {
       return poses[i];
+    }
   }
 
   return 0.0;
@@ -303,370 +476,281 @@ void RQTPlayMotionBuilder::onLoadPressed()
 {
   // Open popup with options
   QStringList motions;
-  XmlRpc::XmlRpcValue param;
-  getNodeHandle().getParam("/play_motion/motions", param);
-  if (param.getType() != XmlRpc::XmlRpcValue::TypeStruct)
-  {
+
+  const auto motions_list = getMotionsList();
+  if (motions_list.empty()) {
     QMessageBox::critical(widget_, tr("Error"), tr("Could not load motions from ROS."));
     return;
   }
 
-  for (auto it : param)
-  {
-    motions << tr(it.first.c_str());
+  for (const auto & motion : motions_list) {
+    motions << tr(motion.c_str());
   }
 
   bool ok;
-  QString motion = QInputDialog::getItem(widget_, tr("Load a motion"), tr("Motion:"),
-                                         motions, 0, false, &ok);
+  QString motion = QInputDialog::getItem(
+    widget_, tr("Load a motion"), tr("Motion:"), motions, 0, false, &ok);
 
-  if (ok && !motion.isEmpty())
-  {
-    if (!builder_client_->waitForServer(ros::Duration(5.0)))
-    {
-      ROS_ERROR_STREAM("Couldn't contact builder server");
+  if (ok && !motion.isEmpty()) {
+    if (!builder_client_->wait_for_action_server(kTimeout)) {
+      RCLCPP_ERROR(node_->get_logger(), "Action server for building motions not available");
+      return;
     }
-    else
-    {
-      play_motion_builder_msgs::BuildMotionGoal goal;  // Empty goal for new motion
-      goal.motion = motion.toStdString();
-      builder_client_->sendGoal(goal);
-      editing_ = true;
-      enableBtns();
-      ros::Duration(0.1).sleep();  // Wait for a bit
 
-      play_motion_builder_msgs::ListJointGroups ljg_service;
-      if (list_joints_client_.call(ljg_service))
-      {
-        // Load Group table
-        qDeleteAll(ui_.group_area_->widget()->findChildren<QWidget *>());
-        for (const auto &group : ljg_service.response.groups)
-        {
-          QRadioButton *jsc = new QRadioButton();
-          jsc->setChecked(false);
-          jsc->setProperty("group_name", QString::fromStdString(group));
-          connect(jsc, SIGNAL(toggled(bool)), this, SLOT(onGroupToggled(bool)));
-          jsc->setText(QString::fromStdString(group));
-          ui_.group_area_->widget()->layout()->addWidget(jsc);
-          ROS_INFO_STREAM("Group found: " << group);
-        }
-        // Load joint table
-        qDeleteAll(ui_.joint_area_->widget()->findChildren<QWidget *>());
-        for (const auto &joint : ljg_service.response.additional_joints)
-        {
-          QCheckBox *jsc = new QCheckBox();
-          jsc->setChecked(false);
-          jsc->setProperty("joint_name", QString::fromStdString(joint));
-          connect(jsc, SIGNAL(toggled(bool)), this, SLOT(onJointToggled(bool)));
-          jsc->setText(QString::fromStdString(joint));
-          ui_.joint_area_->widget()->layout()->addWidget(jsc);
-          ROS_INFO_STREAM("Extra joint found: " << joint);
-        }
+    BuildMotion::Goal goal;   // Empty goal for new motion
+    goal.motion = motion.toStdString();
 
-        play_motion_builder_msgs::EditMotion em;
-        em.request.action = play_motion_builder_msgs::EditMotion::Request::LIST;
-        if (edit_motion_client_.call(em))
-        {
-          if (em.response.ok)
-          {
-            loadMotion(em.response.motion);
-            editing_motion_ = motion.toStdString();
-          }
-          else
-          {
-            ROS_ERROR_STREAM("ERROR: " << em.response.message);
-          }
-        }
-        else
-        {
-          ROS_ERROR_STREAM("There was an error contacting the edit motion service");
-        }
+    auto build_future = builder_client_->async_send_goal(goal);
+    editing_ = true;
+    enableBtns();
+
+    // wait for goal to be sent
+    auto start_time = node_->now();
+    while (build_future.wait_for(10ms) != std::future_status::ready) {
+      if (node_->now() - start_time > kTimeout) {
+        RCLCPP_ERROR_STREAM(node_->get_logger(), "Error while loading motion");
+        return;
       }
+    }
+
+    auto goal_handle = build_future.get();
+    if (!goal_handle) {
+      RCLCPP_ERROR(node_->get_logger(), "Goal rejected by builder server");
+      return;
+    }
+
+    auto result_future = builder_client_->async_get_result(goal_handle);
+    start_time = node_->now();
+    while (result_future.wait_for(10ms) != std::future_status::ready) {
+      if (node_->now() - start_time > kTimeout) {
+        RCLCPP_ERROR_STREAM(node_->get_logger(), "Error while loading motion");
+        return;
+      }
+    }
+
+    auto result = result_future.get();
+    if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {
+      RCLCPP_INFO_STREAM(node_->get_logger(), "Motion loaded");
+    } else {
+      RCLCPP_ERROR_STREAM(node_->get_logger(), "Error loading motion");
+    }
+
+    // Load joint groups
+    auto ljg = std::make_shared<ListJointGroups::Request>();
+    auto ljg_future = list_joints_client_->async_send_request(ljg);
+
+    start_time = node_->now();
+    while (ljg_future.wait_for(10ms) != std::future_status::ready) {
+      if (node_->now() - start_time > kTimeout) {
+        RCLCPP_ERROR_STREAM(node_->get_logger(), "Error while changing joints");
+        return;
+      }
+    }
+    auto ljg_response = ljg_future.get();
+
+    // Load Group table
+    qDeleteAll(ui_.group_area_->widget()->findChildren<QWidget *>());
+    for (const auto & group : ljg_response->groups) {
+      QRadioButton * jsc = new QRadioButton();
+      jsc->setChecked(false);
+      jsc->setProperty("group_name", QString::fromStdString(group));
+      connect(jsc, SIGNAL(toggled(bool)), this, SLOT(onGroupToggled(bool)));
+      jsc->setText(QString::fromStdString(group));
+      ui_.group_area_->widget()->layout()->addWidget(jsc);
+      RCLCPP_INFO_STREAM(node_->get_logger(), "Group found: " << group);
+    }
+    // Load joint table
+    qDeleteAll(ui_.joint_area_->widget()->findChildren<QWidget *>());
+    for (const auto & joint : ljg_response->additional_joints) {
+      QCheckBox * jsc = new QCheckBox();
+      jsc->setChecked(false);
+      jsc->setProperty("joint_name", QString::fromStdString(joint));
+      connect(jsc, SIGNAL(toggled(bool)), this, SLOT(onJointToggled(bool)));
+      jsc->setText(QString::fromStdString(joint));
+      ui_.joint_area_->widget()->layout()->addWidget(jsc);
+      RCLCPP_INFO_STREAM(node_->get_logger(), "Extra joint found: " << joint);
+    }
+
+    const auto em_response = editMotion(EditMotion::Request::LIST);
+    if (em_response->ok) {
+      loadMotion(em_response->motion);
+      editing_motion_ = motion.toStdString();
     }
   }
 }
 
 void RQTPlayMotionBuilder::onCaptureClicked()
 {
-  play_motion_builder_msgs::EditMotion em;
-  em.request.action = play_motion_builder_msgs::EditMotion::Request::APPEND;
-  if (edit_motion_client_.call(em))
-  {
-    if (em.response.ok)
-    {
-      loadMotion(em.response.motion);
-    }
-    else
-    {
-      ROS_ERROR_STREAM("ERROR: " << em.response.message);
-    }
-  }
-  else
-  {
-    ROS_ERROR_STREAM("Error calling the edit_motion service to append keyframe");
+  auto result = editMotion(EditMotion::Request::APPEND);
+  if (result && result->ok) {
+    loadMotion(result->motion);
   }
 }
 
 void RQTPlayMotionBuilder::onPlayClicked()
 {
-  if (!motion_running_)
-  {
-    play_motion_builder_msgs::RunMotionGoal goal;
-    goal.run_mode = play_motion_builder_msgs::RunMotionGoal::RUN_MOTION;
+  if (!motion_running_) {
+    if (!run_motion_client_->wait_for_action_server(kTimeout)) {
+      RCLCPP_ERROR(
+        node_->get_logger(), "Action server for running motions not available after waiting");
+      return;
+    }
+    auto goal = RunMotion::Goal();
+    goal.run_mode = RunMotion::Goal::RUN_MOTION;
     goal.downshift = ui_.downshift_->value();
 
     disableBtns();
     motion_running_ = true;
-    run_motion_client_->sendGoal(goal, boost::bind(&RQTPlayMotionBuilder::runDone, this, _1,
-                                                   _2));  // Add done callback to unlock
-  }
-  else
-  {
-    run_motion_client_->cancelAllGoals();
+
+    auto send_goal_options = rclcpp_action::Client<RunMotion>::SendGoalOptions();
+    send_goal_options.result_callback = std::bind(&RQTPlayMotionBuilder::runDone, this, _1);
+
+    run_motion_client_->async_send_goal(goal, send_goal_options);
+  } else {
+    run_motion_client_->async_cancel_all_goals();   // TODO NJG not working
     motion_running_ = false;
+    enableBtns();
   }
 }
 
 void RQTPlayMotionBuilder::onSaveClicked()
 {
-  if (!editing_motion_.empty())
-  {
+  if (!editing_motion_.empty()) {
     properties_dialog_->loadYamlName(editing_motion_);
+
     // Load config
-    XmlRpc::XmlRpcValue param;
-    if (getNodeHandle().getParam("/play_motion/motions/" + editing_motion_ + "/meta", param))
-    {
-      properties_dialog_->loadMeta(static_cast<std::string>(param["name"]),
-                                   static_cast<std::string>(param["usage"]),
-                                   static_cast<std::string>(param["description"]));
+    auto motion = getMotionInfo(editing_motion_);
+    if (!motion.key.empty()) {
+      properties_dialog_->loadMeta(motion.name, motion.usage, motion.description);
     }
-  }
-  else
-  {
+  } else {
     properties_dialog_->reset();
   }
   properties_dialog_->exec();
 }
 
-void RQTPlayMotionBuilder::onContextMenuRequested(const QPoint &point)
+void RQTPlayMotionBuilder::onContextMenuRequested(const QPoint & point)
 {
-  QTableWidgetItem *clicked = ui_.movement_table_->itemAt(point);
-  if (clicked)
-  {
+  QTableWidgetItem * clicked = ui_.movement_table_->itemAt(point);
+  if (clicked) {
     int row = clicked->row();
-    ROS_DEBUG_STREAM("Called on row" << row);
+    RCLCPP_DEBUG_STREAM(node_->get_logger(), "Called on row" << row);
 
-    QAction *selectedItem = table_menu_.exec(QCursor::pos());
-    if (selectedItem)
-    {
-      ROS_DEBUG_STREAM("Item selected is " << selectedItem->text().toStdString());
+    QAction * selectedItem = table_menu_.exec(QCursor::pos());
+    if (selectedItem) {
+      RCLCPP_DEBUG_STREAM(
+        node_->get_logger(),
+        "Item selected is " << selectedItem->text().toStdString());
 
-      if (selectedItem->text().toStdString() == GOTO_MENU)
-      {
+      if (selectedItem->text().toStdString() == GOTO_MENU) {
         emit goToSelected(row);
-      }
-      else if (selectedItem->text().toStdString() == DELETE_MENU)
-      {
+      } else if (selectedItem->text().toStdString() == DELETE_MENU) {
         emit deleteSelected(row);
-      }
-      else if (selectedItem->text().toStdString() == SET_TO_CURRENT_MENU)
-      {
+      } else if (selectedItem->text().toStdString() == SET_TO_CURRENT_MENU) {
         emit setToCurrentSelected(row);
-      }
-      else if (selectedItem->text().toStdString() == COPY_BELOW_MENU)
-      {
+      } else if (selectedItem->text().toStdString() == COPY_BELOW_MENU) {
         emit copyBelowSelected(row);
-      }
-      else if (selectedItem->text().toStdString() == COPY_LAST_MENU)
-      {
+      } else if (selectedItem->text().toStdString() == COPY_LAST_MENU) {
         emit copyLastSelected(row);
-      }
-      else
-      {
-        ROS_ERROR_STREAM("Selected unknown menu " << selectedItem->text().toStdString());
+      } else {
+        RCLCPP_ERROR_STREAM(
+          node_->get_logger(),
+          "Selected unknown menu " << selectedItem->text().toStdString());
       }
     }
   }
 }
+
 void RQTPlayMotionBuilder::onGotoSelected(int frame)
 {
-  play_motion_builder_msgs::RunMotionGoal goal;
-  goal.run_mode = play_motion_builder_msgs::RunMotionGoal::GO_TO_STEP;
+  if (!run_motion_client_->wait_for_action_server(kTimeout)) {
+    RCLCPP_ERROR(
+      node_->get_logger(), "Action server for running motions not available after waiting");
+    return;
+  }
+  auto goal = RunMotion::Goal();
+  goal.run_mode = RunMotion::Goal::GO_TO_STEP;
   goal.step_id = frame;
 
   disableBtns();
   motion_running_ = true;
-  run_motion_client_->sendGoal(goal, boost::bind(&RQTPlayMotionBuilder::runDone, this, _1, _2));  // Add done callback to unlock
+
+  auto send_goal_options = rclcpp_action::Client<RunMotion>::SendGoalOptions();
+  send_goal_options.result_callback = std::bind(&RQTPlayMotionBuilder::runDone, this, _1);
+
+  run_motion_client_->async_send_goal(goal, send_goal_options);
 }
 
 void RQTPlayMotionBuilder::onDeleteSelected(int frame)
 {
-  play_motion_builder_msgs::EditMotion em;
-  em.request.action = play_motion_builder_msgs::EditMotion::Request::REMOVE;
-  em.request.step_id = frame;
-  if (edit_motion_client_.call(em))
-  {
-    if (em.response.ok)
-    {
-      loadMotion(em.response.motion);
-    }
-    else
-    {
-      ROS_ERROR_STREAM("ERROR: " << em.response.message);
-    }
-  }
-  else
-  {
-    ROS_ERROR_STREAM("Error calling the edit_motion service to edit keyframe");
+  auto result = editMotion(EditMotion::Request::REMOVE, frame);
+  if (result && result->ok) {
+    loadMotion(result->motion);
   }
 }
+
 void RQTPlayMotionBuilder::onSetToCurrentSelected(int frame)
 {
-  play_motion_builder_msgs::EditMotion em;
-  em.request.action = play_motion_builder_msgs::EditMotion::Request::EDIT;
-  em.request.step_id = frame;
-  if (edit_motion_client_.call(em))
-  {
-    if (em.response.ok)
-    {
-      loadMotion(em.response.motion);
-    }
-    else
-    {
-      ROS_ERROR_STREAM("ERROR: " << em.response.message);
-    }
-  }
-  else
-  {
-    ROS_ERROR_STREAM("Error calling the edit_motion service to edit keyframe");
+  auto result = editMotion(EditMotion::Request::EDIT, frame);
+  if (result && result->ok) {
+    loadMotion(result->motion);
   }
 }
+
 void RQTPlayMotionBuilder::onCopyBelowSelected(int frame)
 {
-  play_motion_builder_msgs::EditMotion em;
-  em.request.action = play_motion_builder_msgs::EditMotion::Request::COPY_AS_NEXT;
-  em.request.step_id = frame;
-  if (edit_motion_client_.call(em))
-  {
-    if (em.response.ok)
-    {
-      loadMotion(em.response.motion);
-    }
-    else
-    {
-      ROS_ERROR_STREAM("ERROR: " << em.response.message);
-    }
-  }
-  else
-  {
-    ROS_ERROR_STREAM("Error calling the edit_motion service to copy keyframe");
+  auto result = editMotion(EditMotion::Request::COPY_AS_NEXT, frame);
+  if (result && result->ok) {
+    loadMotion(result->motion);
   }
 }
+
 void RQTPlayMotionBuilder::onCopyLastSelected(int frame)
 {
-  play_motion_builder_msgs::EditMotion em;
-  em.request.action = play_motion_builder_msgs::EditMotion::Request::COPY_AS_LAST;
-  em.request.step_id = frame;
-  if (edit_motion_client_.call(em))
-  {
-    if (em.response.ok)
-    {
-      loadMotion(em.response.motion);
-    }
-    else
-    {
-      ROS_ERROR_STREAM("ERROR: " << em.response.message);
-    }
-  }
-  else
-  {
-    ROS_ERROR_STREAM("Error calling the edit_motion service to copy-as-last keyframe");
+  auto result = editMotion(EditMotion::Request::COPY_AS_LAST, frame);
+  if (result && result->ok) {
+    loadMotion(result->motion);
   }
 }
 
 void RQTPlayMotionBuilder::onGroupToggled(bool state)
 {
-  if (state && !updating_list_)
-  {
+  if (state && !updating_list_) {
     QString group = sender()->property("group_name").toString();
-    ROS_DEBUG_STREAM("Change group " << group.toStdString() << " to active");
+    RCLCPP_DEBUG_STREAM(
+      node_->get_logger(),
+      "Change group " << group.toStdString() << " to active");
 
-    play_motion_builder_msgs::ChangeJoints cj;
-    cj.request.group = group.toStdString();
-    if (change_joints_client_.call(cj))
-    {
-      if (cj.response.ok)
-      {
-        listMotion();
-      }
-      else
-      {
-        ROS_ERROR_STREAM("ERROR: " << cj.response.message);
-      }
-    }
-    else
-    {
-      ROS_ERROR_STREAM("Error calling the edit_motion service to copy-as-last keyframe");
-    }
+    changeJoints(group.toStdString(), {}, {});
   }
 }
 
 void RQTPlayMotionBuilder::onJointToggled(bool state)
 {
-  if (!updating_list_)
-  {
+  if (!updating_list_) {
     QString joint = sender()->property("joint_name").toString();
-    ROS_DEBUG_STREAM("Change joint " << joint.toStdString() << " to "
-                                     << (state ? "active" : "inactive"));
+    RCLCPP_DEBUG_STREAM(
+      node_->get_logger(),
+      "Change joint " << joint.toStdString() << " to "
+                      << (state ? "active" : "inactive"));
 
-    play_motion_builder_msgs::ChangeJoints cj;
-    if (state)
-      cj.request.joints_to_add.push_back(joint.toStdString());
-    else
-      cj.request.joints_to_remove.push_back(joint.toStdString());
-
-    if (change_joints_client_.call(cj))
-    {
-      if (cj.response.ok)
-      {
-        listMotion();
-      }
-      else
-      {
-        ROS_ERROR_STREAM("ERROR: " << cj.response.message);
-      }
-    }
-    else
-    {
-      ROS_ERROR_STREAM("Error calling the edit_motion service to copy-as-last keyframe");
+    if (state) {
+      changeJoints("", {}, {joint.toStdString()});
+    } else {
+      changeJoints("", {joint.toStdString()}, {});
     }
   }
 }
 
 void RQTPlayMotionBuilder::onCellChanged(int row, int col)
 {
-  if (col == 0 && !updating_list_)
-  {
-    ROS_DEBUG_STREAM("Changing time");
-    play_motion_builder_msgs::EditMotion em;
-    em.request.action = play_motion_builder_msgs::EditMotion::Request::EDIT_TIME;
-    em.request.step_id = row;
-    em.request.time = ui_.movement_table_->item(row, col)->text().toDouble();
-
-    if (edit_motion_client_.call(em))
-    {
-      if (em.response.ok)
-      {
-        loadMotion(em.response.motion);
-      }
-      else
-      {
-        ROS_ERROR_STREAM("ERROR: " << em.response.message);
-      }
-    }
-    else
-    {
-      ROS_ERROR_STREAM("Error calling the edit_motion service to copy-as-last keyframe");
+  if (col == 0 && !updating_list_) {
+    RCLCPP_DEBUG_STREAM(node_->get_logger(), "Changing time");
+    auto result = editMotion(
+      EditMotion::Request::EDIT_TIME, row,
+      ui_.movement_table_->item(row, col)->text().toDouble());
+    if (result && result->ok) {
+      loadMotion(result->motion);
     }
   }
 }
@@ -677,6 +761,8 @@ void RQTPlayMotionBuilder::onMotionStored(QString motion_name)
   properties_dialog_->close();
 }
 
-}  // namespace pal
+}  // namespace rqt_play_motion_builder
 
-PLUGINLIB_EXPORT_CLASS(pal::RQTPlayMotionBuilder, rqt_gui_cpp::Plugin)
+#include "pluginlib/class_list_macros.hpp"
+
+PLUGINLIB_EXPORT_CLASS(rqt_play_motion_builder::RQTPlayMotionBuilder, rqt_gui_cpp::Plugin)

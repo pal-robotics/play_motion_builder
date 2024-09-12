@@ -1,3 +1,17 @@
+// Copyright (c) 2024 PAL Robotics S.L. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include <ros/ros.h>
 #include <gtest/gtest.h>
 
@@ -19,7 +33,8 @@ namespace pal
 class TestBot
 {
 public:
-  TestBot() : as_(1, &queue_)
+  TestBot()
+  : as_(1, &queue_)
   {
     nh_.setCallbackQueue(&queue_);
 
@@ -53,14 +68,13 @@ private:
   std::unordered_map<std::string, double> joints_;
   std::mutex joint_mutex_;
 
-  void timerCb(const ros::TimerEvent&)
+  void timerCb(const ros::TimerEvent &)
   {
     sensor_msgs::JointState js;
     js.header.stamp = ros::Time::now();
     {
       std::lock_guard<std::mutex> lock(joint_mutex_);
-      for (const auto& joint : joints_)
-      {
+      for (const auto & joint : joints_) {
         js.name.push_back(joint.first);
         js.position.push_back(joint.second);
       }
@@ -69,21 +83,22 @@ private:
   }
 };
 
-template <typename InputIterator1, typename InputIterator2>
-bool range_equal(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
-                 InputIterator2 last2)
+template<typename InputIterator1, typename InputIterator2>
+bool range_equal(
+  InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
+  InputIterator2 last2)
 {
-  while (first1 != last1 && first2 != last2)
-  {
-    if (*first1 != *first2)
+  while (first1 != last1 && first2 != last2) {
+    if (*first1 != *first2) {
       return false;
+    }
     ++first1;
     ++first2;
   }
   return (first1 == last1) && (first2 == last2);
 }
 
-bool compare_files(const std::string& filename1, const std::string& filename2)
+bool compare_files(const std::string & filename1, const std::string & filename2)
 {
   std::ifstream file1(filename1);
   std::ifstream file2(filename2);
@@ -101,28 +116,34 @@ TEST(MotionBuilderTest, actionNotStartedTest)
 {
   // Call edit service
   play_motion_builder_msgs::EditMotion srv_edit;
-  ASSERT_TRUE(ros::service::waitForService("play_motion_builder_node/edit_motion",
-                                           ros::Duration(5.0)));
+  ASSERT_TRUE(
+    ros::service::waitForService(
+      "play_motion_builder_node/edit_motion",
+      ros::Duration(5.0)));
   ros::service::call<play_motion_builder_msgs::EditMotion>(
-      "play_motion_builder_node/edit_motion", srv_edit);
+    "play_motion_builder_node/edit_motion", srv_edit);
   EXPECT_FALSE(srv_edit.response.ok);
   EXPECT_EQ("No motion being built", srv_edit.response.message);
 
   // Call Store service
   play_motion_builder_msgs::StoreMotion srv_store;
-  ASSERT_TRUE(ros::service::waitForService("play_motion_builder_node/store_motion",
-                                           ros::Duration(5.0)));
+  ASSERT_TRUE(
+    ros::service::waitForService(
+      "play_motion_builder_node/store_motion",
+      ros::Duration(5.0)));
   ros::service::call<play_motion_builder_msgs::StoreMotion>(
-      "play_motion_builder_node/store_motion", srv_store);
+    "play_motion_builder_node/store_motion", srv_store);
   EXPECT_FALSE(srv_store.response.ok);
   EXPECT_EQ("No motion being built, could not store.", srv_store.response.message);
 
   // Call change joints service
   play_motion_builder_msgs::ChangeJoints srv_change_joints;
-  ASSERT_TRUE(ros::service::waitForService("play_motion_builder_node/change_joints",
-                                           ros::Duration(5.0)));
+  ASSERT_TRUE(
+    ros::service::waitForService(
+      "play_motion_builder_node/change_joints",
+      ros::Duration(5.0)));
   ros::service::call<play_motion_builder_msgs::ChangeJoints>(
-      "play_motion_builder_node/change_joints", srv_change_joints);
+    "play_motion_builder_node/change_joints", srv_change_joints);
   EXPECT_FALSE(srv_change_joints.response.ok);
   EXPECT_EQ("No motion being built", srv_change_joints.response.message);
 
@@ -130,7 +151,7 @@ TEST(MotionBuilderTest, actionNotStartedTest)
   ros::NodeHandle nh;
   play_motion_builder_msgs::RunMotionGoal rmg;
   actionlib::SimpleActionClient<play_motion_builder_msgs::RunMotionAction> client(
-      nh, "play_motion_builder_node/run");
+    nh, "play_motion_builder_node/run");
   client.waitForServer(ros::Duration(5));
   client.sendGoalAndWait(rmg, ros::Duration(5));
   // Check state
@@ -143,7 +164,7 @@ TEST(MotionBuilderTest, buildNewMotion)
 
   ros::NodeHandle nh;
   actionlib::SimpleActionClient<play_motion_builder_msgs::BuildMotionAction> client(
-      nh, "play_motion_builder_node/build");
+    nh, "play_motion_builder_node/build");
 
   ASSERT_TRUE(client.waitForServer(ros::Duration(5.0))) << "Server didn't start";
 
@@ -157,7 +178,7 @@ TEST(MotionBuilderTest, buildNewMotion)
   play_motion_builder_msgs::EditMotion srv_edit;
   srv_edit.request.action = play_motion_builder_msgs::EditMotion::Request::LIST;
   ros::service::call<play_motion_builder_msgs::EditMotion>(
-      "play_motion_builder_node/edit_motion", srv_edit);
+    "play_motion_builder_node/edit_motion", srv_edit);
   // Check list is empty
   EXPECT_TRUE(srv_edit.response.ok) << srv_edit.response.message;
   EXPECT_EQ(0, srv_edit.response.motion.keyframes.size());
@@ -165,23 +186,20 @@ TEST(MotionBuilderTest, buildNewMotion)
   // Capture position and check added
   srv_edit.request.action = play_motion_builder_msgs::EditMotion::Request::APPEND;
   ros::service::call<play_motion_builder_msgs::EditMotion>(
-      "play_motion_builder_node/edit_motion", srv_edit);
+    "play_motion_builder_node/edit_motion", srv_edit);
   // Check list has one element
   EXPECT_TRUE(srv_edit.response.ok) << srv_edit.response.message;
   EXPECT_EQ(1, srv_edit.response.motion.keyframes.size());
   // Review element
   EXPECT_EQ(3, srv_edit.response.motion.joints.size());
   EXPECT_EQ(3, srv_edit.response.motion.keyframes[0].pose.size());
-  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i)
-  {
+  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i) {
     if (srv_edit.response.motion.joints[i] == "arm_left_joint" ||
-        srv_edit.response.motion.joints[i] == "arm_right_joint" ||
-        srv_edit.response.motion.joints[i] == "head_joint")
+      srv_edit.response.motion.joints[i] == "arm_right_joint" ||
+      srv_edit.response.motion.joints[i] == "head_joint")
     {
       EXPECT_NEAR(0.0, srv_edit.response.motion.keyframes[0].pose[i], 0.001);
-    }
-    else
-    {
+    } else {
       EXPECT_TRUE(false) << "Unknown joint added " << srv_edit.response.motion.joints[i];
     }
   }
@@ -192,29 +210,21 @@ TEST(MotionBuilderTest, buildNewMotion)
   ros::Duration(0.15).sleep();  // Wait a bit for the change to take effect
   srv_edit.request.action = play_motion_builder_msgs::EditMotion::Request::APPEND;
   ros::service::call<play_motion_builder_msgs::EditMotion>(
-      "play_motion_builder_node/edit_motion", srv_edit);
+    "play_motion_builder_node/edit_motion", srv_edit);
   // Check list has one element
   EXPECT_TRUE(srv_edit.response.ok) << srv_edit.response.message;
   EXPECT_EQ(2, srv_edit.response.motion.keyframes.size());
   // Review element
   EXPECT_EQ(3, srv_edit.response.motion.joints.size());
   EXPECT_EQ(3, srv_edit.response.motion.keyframes[0].pose.size());
-  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i)
-  {
-    if (srv_edit.response.motion.joints[i] == "arm_left_joint")
-    {
+  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i) {
+    if (srv_edit.response.motion.joints[i] == "arm_left_joint") {
       EXPECT_NEAR(0.1, srv_edit.response.motion.keyframes[1].pose[i], 0.001);
-    }
-    else if (srv_edit.response.motion.joints[i] == "arm_right_joint")
-    {
+    } else if (srv_edit.response.motion.joints[i] == "arm_right_joint") {
       EXPECT_NEAR(0.2, srv_edit.response.motion.keyframes[1].pose[i], 0.001);
-    }
-    else if (srv_edit.response.motion.joints[i] == "head_joint")
-    {
+    } else if (srv_edit.response.motion.joints[i] == "head_joint") {
       EXPECT_NEAR(0.3, srv_edit.response.motion.keyframes[1].pose[i], 0.001);
-    }
-    else
-    {
+    } else {
       EXPECT_TRUE(false) << "Unknown joint added " << srv_edit.response.motion.joints[i];
     }
   }
@@ -226,29 +236,21 @@ TEST(MotionBuilderTest, buildNewMotion)
   srv_edit.request.action = play_motion_builder_msgs::EditMotion::Request::EDIT;
   srv_edit.request.step_id = 0;
   ros::service::call<play_motion_builder_msgs::EditMotion>(
-      "play_motion_builder_node/edit_motion", srv_edit);
+    "play_motion_builder_node/edit_motion", srv_edit);
   // Check list has one element
   EXPECT_TRUE(srv_edit.response.ok) << srv_edit.response.message;
   EXPECT_EQ(2, srv_edit.response.motion.keyframes.size());
   // Review element
   EXPECT_EQ(3, srv_edit.response.motion.joints.size());
   EXPECT_EQ(3, srv_edit.response.motion.keyframes[0].pose.size());
-  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i)
-  {
-    if (srv_edit.response.motion.joints[i] == "arm_left_joint")
-    {
+  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i) {
+    if (srv_edit.response.motion.joints[i] == "arm_left_joint") {
       EXPECT_NEAR(0.4, srv_edit.response.motion.keyframes[0].pose[i], 0.001);
-    }
-    else if (srv_edit.response.motion.joints[i] == "arm_right_joint")
-    {
+    } else if (srv_edit.response.motion.joints[i] == "arm_right_joint") {
       EXPECT_NEAR(0.5, srv_edit.response.motion.keyframes[0].pose[i], 0.001);
-    }
-    else if (srv_edit.response.motion.joints[i] == "head_joint")
-    {
+    } else if (srv_edit.response.motion.joints[i] == "head_joint") {
       EXPECT_NEAR(0.6, srv_edit.response.motion.keyframes[0].pose[i], 0.001);
-    }
-    else
-    {
+    } else {
       EXPECT_TRUE(false) << "Unknown joint added " << srv_edit.response.motion.joints[i];
     }
   }
@@ -258,29 +260,21 @@ TEST(MotionBuilderTest, buildNewMotion)
   srv_edit.request.action = play_motion_builder_msgs::EditMotion::Request::COPY_AS_LAST;
   srv_edit.request.step_id = 0;
   ros::service::call<play_motion_builder_msgs::EditMotion>(
-      "play_motion_builder_node/edit_motion", srv_edit);
+    "play_motion_builder_node/edit_motion", srv_edit);
   // Check list has one element
   EXPECT_TRUE(srv_edit.response.ok) << srv_edit.response.message;
   EXPECT_EQ(3, srv_edit.response.motion.keyframes.size());
   // Review element
   EXPECT_EQ(3, srv_edit.response.motion.joints.size());
   EXPECT_EQ(3, srv_edit.response.motion.keyframes[2].pose.size());
-  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i)
-  {
-    if (srv_edit.response.motion.joints[i] == "arm_left_joint")
-    {
+  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i) {
+    if (srv_edit.response.motion.joints[i] == "arm_left_joint") {
       EXPECT_NEAR(0.4, srv_edit.response.motion.keyframes[2].pose[i], 0.001);
-    }
-    else if (srv_edit.response.motion.joints[i] == "arm_right_joint")
-    {
+    } else if (srv_edit.response.motion.joints[i] == "arm_right_joint") {
       EXPECT_NEAR(0.5, srv_edit.response.motion.keyframes[2].pose[i], 0.001);
-    }
-    else if (srv_edit.response.motion.joints[i] == "head_joint")
-    {
+    } else if (srv_edit.response.motion.joints[i] == "head_joint") {
       EXPECT_NEAR(0.6, srv_edit.response.motion.keyframes[2].pose[i], 0.001);
-    }
-    else
-    {
+    } else {
       EXPECT_TRUE(false) << "Unknown joint added " << srv_edit.response.motion.joints[i];
     }
   }
@@ -290,29 +284,21 @@ TEST(MotionBuilderTest, buildNewMotion)
   srv_edit.request.action = play_motion_builder_msgs::EditMotion::Request::COPY_AS_NEXT;
   srv_edit.request.step_id = 1;
   ros::service::call<play_motion_builder_msgs::EditMotion>(
-      "play_motion_builder_node/edit_motion", srv_edit);
+    "play_motion_builder_node/edit_motion", srv_edit);
   // Check list has one element
   EXPECT_TRUE(srv_edit.response.ok) << srv_edit.response.message;
   EXPECT_EQ(4, srv_edit.response.motion.keyframes.size());
   // Review element
   EXPECT_EQ(3, srv_edit.response.motion.joints.size());
   EXPECT_EQ(3, srv_edit.response.motion.keyframes[2].pose.size());
-  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i)
-  {
-    if (srv_edit.response.motion.joints[i] == "arm_left_joint")
-    {
+  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i) {
+    if (srv_edit.response.motion.joints[i] == "arm_left_joint") {
       EXPECT_NEAR(0.1, srv_edit.response.motion.keyframes[2].pose[i], 0.001);
-    }
-    else if (srv_edit.response.motion.joints[i] == "arm_right_joint")
-    {
+    } else if (srv_edit.response.motion.joints[i] == "arm_right_joint") {
       EXPECT_NEAR(0.2, srv_edit.response.motion.keyframes[2].pose[i], 0.001);
-    }
-    else if (srv_edit.response.motion.joints[i] == "head_joint")
-    {
+    } else if (srv_edit.response.motion.joints[i] == "head_joint") {
       EXPECT_NEAR(0.3, srv_edit.response.motion.keyframes[2].pose[i], 0.001);
-    }
-    else
-    {
+    } else {
       EXPECT_TRUE(false) << "Unknown joint added " << srv_edit.response.motion.joints[i];
     }
   }
@@ -322,29 +308,21 @@ TEST(MotionBuilderTest, buildNewMotion)
   srv_edit.request.action = play_motion_builder_msgs::EditMotion::Request::REMOVE;
   srv_edit.request.step_id = 2;
   ros::service::call<play_motion_builder_msgs::EditMotion>(
-      "play_motion_builder_node/edit_motion", srv_edit);
+    "play_motion_builder_node/edit_motion", srv_edit);
   // Check list has one element
   EXPECT_TRUE(srv_edit.response.ok) << srv_edit.response.message;
   EXPECT_EQ(3, srv_edit.response.motion.keyframes.size());
   // Review element
   EXPECT_EQ(3, srv_edit.response.motion.joints.size());
   EXPECT_EQ(3, srv_edit.response.motion.keyframes[2].pose.size());
-  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i)
-  {
-    if (srv_edit.response.motion.joints[i] == "arm_left_joint")
-    {
+  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i) {
+    if (srv_edit.response.motion.joints[i] == "arm_left_joint") {
       EXPECT_NEAR(0.4, srv_edit.response.motion.keyframes[2].pose[i], 0.001);
-    }
-    else if (srv_edit.response.motion.joints[i] == "arm_right_joint")
-    {
+    } else if (srv_edit.response.motion.joints[i] == "arm_right_joint") {
       EXPECT_NEAR(0.5, srv_edit.response.motion.keyframes[2].pose[i], 0.001);
-    }
-    else if (srv_edit.response.motion.joints[i] == "head_joint")
-    {
+    } else if (srv_edit.response.motion.joints[i] == "head_joint") {
       EXPECT_NEAR(0.6, srv_edit.response.motion.keyframes[2].pose[i], 0.001);
-    }
-    else
-    {
+    } else {
       EXPECT_TRUE(false) << "Unknown joint added " << srv_edit.response.motion.joints[i];
     }
   }
@@ -358,7 +336,7 @@ TEST(MotionBuilderTest, buildNewMotion)
   srv_store.request.meta.usage = "Test";
   srv_store.request.meta.description = "Motion created to test the system";
   ros::service::call<play_motion_builder_msgs::StoreMotion>(
-      "play_motion_builder_node/store_motion", srv_store);
+    "play_motion_builder_node/store_motion", srv_store);
   EXPECT_TRUE(srv_store.response.ok) << srv_store.response.message;
 
   // Compare files
@@ -373,7 +351,7 @@ TEST(MotionBuilderTest, buildNewMotion)
   // Make sure system is done
   srv_edit.request.action = play_motion_builder_msgs::EditMotion::Request::LIST;
   ros::service::call<play_motion_builder_msgs::EditMotion>(
-      "play_motion_builder_node/edit_motion", srv_edit);
+    "play_motion_builder_node/edit_motion", srv_edit);
   EXPECT_FALSE(srv_edit.response.ok);
   EXPECT_EQ("No motion being built", srv_edit.response.message);
 }
@@ -384,7 +362,7 @@ TEST(MotionBuilderTest, editExistingMotion)
 
   ros::NodeHandle nh;
   actionlib::SimpleActionClient<play_motion_builder_msgs::BuildMotionAction> client(
-      nh, "play_motion_builder_node/build");
+    nh, "play_motion_builder_node/build");
 
   ASSERT_TRUE(client.waitForServer(ros::Duration(5.0))) << "Server didn't start";
 
@@ -399,19 +377,19 @@ TEST(MotionBuilderTest, editExistingMotion)
   play_motion_builder_msgs::EditMotion srv_edit;
   srv_edit.request.action = play_motion_builder_msgs::EditMotion::Request::LIST;
   ros::service::call<play_motion_builder_msgs::EditMotion>(
-      "play_motion_builder_node/edit_motion", srv_edit);
+    "play_motion_builder_node/edit_motion", srv_edit);
   // Check motion is properly loaded
   EXPECT_TRUE(srv_edit.response.ok) << srv_edit.response.message;
   EXPECT_EQ(3, srv_edit.response.motion.keyframes.size());
   EXPECT_EQ(2, srv_edit.response.motion.joints.size());
 
   size_t head_index, arm_left_index;
-  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i)
-  {
-    if (srv_edit.response.motion.joints[i] == "head_joint")
+  for (size_t i = 0; i < srv_edit.response.motion.joints.size(); ++i) {
+    if (srv_edit.response.motion.joints[i] == "head_joint") {
       head_index = i;
-    else if (srv_edit.response.motion.joints[i] == "arm_left_joint")
+    } else if (srv_edit.response.motion.joints[i] == "arm_left_joint") {
       arm_left_index = i;
+    }
   }
   // Check keyframe 1
   EXPECT_NEAR(0.0, srv_edit.response.motion.keyframes[0].time_from_last, 0.001);
@@ -431,7 +409,7 @@ TEST(MotionBuilderTest, editExistingMotion)
   // Try to change joint inside a group (should fail)
   srv_change.request.joints_to_add.push_back("arm_right_joint");
   ros::service::call<play_motion_builder_msgs::ChangeJoints>(
-      "play_motion_builder_node/change_joints", srv_change);
+    "play_motion_builder_node/change_joints", srv_change);
   ASSERT_FALSE(srv_change.response.ok) << srv_change.response.message;
   EXPECT_EQ(2, srv_change.response.used_joints.size());
   EXPECT_EQ("arm_left", srv_change.response.current_group);
@@ -440,7 +418,7 @@ TEST(MotionBuilderTest, editExistingMotion)
   srv_change.request.joints_to_add.clear();
   srv_change.request.group = "both_arms";
   ros::service::call<play_motion_builder_msgs::ChangeJoints>(
-      "play_motion_builder_node/change_joints", srv_change);
+    "play_motion_builder_node/change_joints", srv_change);
   ASSERT_TRUE(srv_change.response.ok) << srv_change.response.message;
   EXPECT_EQ(3, srv_change.response.used_joints.size());
   EXPECT_EQ("both_arms", srv_change.response.current_group);
@@ -449,7 +427,7 @@ TEST(MotionBuilderTest, editExistingMotion)
   srv_change.request.joints_to_remove.push_back("head_joint");
   srv_change.request.group = "";
   ros::service::call<play_motion_builder_msgs::ChangeJoints>(
-      "play_motion_builder_node/change_joints", srv_change);
+    "play_motion_builder_node/change_joints", srv_change);
   ASSERT_TRUE(srv_change.response.ok) << srv_change.response.message;
   EXPECT_EQ(2, srv_change.response.used_joints.size());
   EXPECT_EQ("both_arms", srv_change.response.current_group);
@@ -459,7 +437,7 @@ TEST(MotionBuilderTest, editExistingMotion)
   srv_edit.request.step_id = 1;
   srv_edit.request.time = 5.5;
   ros::service::call<play_motion_builder_msgs::EditMotion>(
-      "play_motion_builder_node/edit_motion", srv_edit);
+    "play_motion_builder_node/edit_motion", srv_edit);
   EXPECT_TRUE(srv_edit.response.ok) << srv_edit.response.message;
   EXPECT_NEAR(5.5, srv_edit.response.motion.keyframes[1].time_from_last, 0.001);
 
@@ -468,7 +446,7 @@ TEST(MotionBuilderTest, editExistingMotion)
   srv_store.request.file_path = "/tmp/test_motion_edit.yaml";
   srv_store.request.ros_name = "test_motion_edit";
   ros::service::call<play_motion_builder_msgs::StoreMotion>(
-      "play_motion_builder_node/store_motion", srv_store);
+    "play_motion_builder_node/store_motion", srv_store);
   EXPECT_TRUE(srv_store.response.ok) << srv_store.response.message;
   // Check result is fine
   // Compare files
@@ -483,14 +461,14 @@ TEST(MotionBuilderTest, editExistingMotion)
   // Make sure system is done
   srv_edit.request.action = play_motion_builder_msgs::EditMotion::Request::LIST;
   ros::service::call<play_motion_builder_msgs::EditMotion>(
-      "play_motion_builder_node/edit_motion", srv_edit);
+    "play_motion_builder_node/edit_motion", srv_edit);
   EXPECT_FALSE(srv_edit.response.ok);
   EXPECT_EQ("No motion being built", srv_edit.response.message);
 }
 
 }  // namespace pal
 
-int main(int argc, char** argv)
+int main(int argc, char ** argv)
 {
   ros::init(argc, argv, "test_motion_builder");
   ros::start();

@@ -1,3 +1,17 @@
+// Copyright (c) 2024 PAL Robotics S.L. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include <play_motion_builder/motion_model.h>
 #include <ros/ros.h>
 #include <gtest/gtest.h>
@@ -71,9 +85,10 @@ TEST(MotionBuilderModelTest, keyframeTest)
   // Test print motion to frame
   YAML::Emitter em5;
   em5 << k2.print(joint_list);
-  EXPECT_EQ("joints: [Test1]\npoints:\n  - time_from_start: 0\n    "
-            "positions: [1]",
-            std::string(em5.c_str()));
+  EXPECT_EQ(
+    "joints: [Test1]\npoints:\n  - time_from_start: 0\n    "
+    "positions: [1]",
+    std::string(em5.c_str()));
 }
 
 TEST(MotionBuilderModelTest, motionTest)
@@ -82,15 +97,13 @@ TEST(MotionBuilderModelTest, motionTest)
 
   // Test loading joints
   EXPECT_FALSE(m.jointsLoaded());
-  for (int i = 0; i < 3; ++i)
-  {
+  for (int i = 0; i < 3; ++i) {
     JointModel jm(0.0, 3.14159226);
     m.addJointModel("Test_joint_" + std::to_string(i + 1), jm);
   }
   EXPECT_FALSE(m.jointsLoaded());
   // Test loading groups
-  for (int i = 0; i < 3; ++i)
-  {
+  for (int i = 0; i < 3; ++i) {
     m.addJointToGroup("TestGroup", "Test_joint_" + std::to_string(i + 1));
   }
   EXPECT_TRUE(m.jointsLoaded());
@@ -110,12 +123,12 @@ TEST(MotionBuilderModelTest, motionTest)
   sensor_msgs::JointStateConstPtr js1c(new sensor_msgs::JointState(js1));
   m.addKeyFrame(js1c);  // Add with default time
   EXPECT_EQ(0.0, m.getKeyFrame(0).getTime()) << "Should be 0 as it's first "
-                                                "frame";
+    "frame";
   EXPECT_EQ(1.1, m.getKeyFrame(0).getJointPosition("Test_joint_1"));
   EXPECT_EQ(1.2, m.getKeyFrame(0).getJointPosition("Test_joint_2"));
   EXPECT_EQ(1.3, m.getKeyFrame(0).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(0).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not on used list";
+    << "Should be NaN as it is not on used list";
 
   m.addKeyFrame(js1c);  // Add with default time
   EXPECT_EQ(Motion::DEFAULT_TIME, m.getKeyFrame(1).getTime());
@@ -123,7 +136,7 @@ TEST(MotionBuilderModelTest, motionTest)
   EXPECT_EQ(1.2, m.getKeyFrame(1).getJointPosition("Test_joint_2"));
   EXPECT_EQ(1.3, m.getKeyFrame(1).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(1).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not on used list";
+    << "Should be NaN as it is not on used list";
 
   // Test updating a frame
   sensor_msgs::JointState js2;
@@ -139,34 +152,34 @@ TEST(MotionBuilderModelTest, motionTest)
 
   m.updateKeyFrame(js2c, 1);
   EXPECT_EQ(0.0, m.getKeyFrame(0).getTime()) << "Should be 0 as it's first "
-                                                "frame";
+    "frame";
   EXPECT_EQ(1.1, m.getKeyFrame(0).getJointPosition("Test_joint_1"));
   EXPECT_EQ(1.2, m.getKeyFrame(0).getJointPosition("Test_joint_2"));
   EXPECT_EQ(1.3, m.getKeyFrame(0).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(0).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not used";
+    << "Should be NaN as it is not used";
   EXPECT_EQ(Motion::DEFAULT_TIME, m.getKeyFrame(1).getTime());
   EXPECT_EQ(2.1, m.getKeyFrame(1).getJointPosition("Test_joint_1"));
   EXPECT_EQ(2.2, m.getKeyFrame(1).getJointPosition("Test_joint_2"));
   EXPECT_EQ(2.3, m.getKeyFrame(1).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(1).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not used";
+    << "Should be NaN as it is not used";
 
   // Test changing the time
   EXPECT_THROW(m.changeTime(5, 1.0), ros::Exception) << "Trying to modify a non-existing "
-                                                        "frame should result in an Exception";
+    "frame should result in an Exception";
   m.changeTime(1, 2.0);
   EXPECT_EQ(2.0, m.getKeyFrame(1).getTime());
 
   // Test changing joint positions
   EXPECT_THROW(m.changeJoint(5, "", 1.0), ros::Exception)
-      << "Trying to modify a non-existing frame should result in an Exception";
+    << "Trying to modify a non-existing frame should result in an Exception";
   EXPECT_THROW(m.changeJoint(1, "Non-existing", 1.0), ros::Exception)
-      << "Trying to modify a non-existing joint should result in an Exception";
+    << "Trying to modify a non-existing joint should result in an Exception";
   double res = m.changeJoint(1, "Test_joint_1", 5000.0);
   EXPECT_EQ(2.1, res);
   EXPECT_EQ(2.1, m.getKeyFrame(1).getJointPosition("Test_joint_1"))
-      << "If value not in joint limits no change";
+    << "If value not in joint limits no change";
   res = m.changeJoint(1, "Test_joint_1", 3.1);
   EXPECT_EQ(3.1, res);
   EXPECT_EQ(3.1, m.getKeyFrame(1).getJointPosition("Test_joint_1"));
@@ -178,19 +191,19 @@ TEST(MotionBuilderModelTest, motionTest)
   EXPECT_EQ(1.2, m.getKeyFrame(0).getJointPosition("Test_joint_2"));
   EXPECT_EQ(1.3, m.getKeyFrame(0).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(0).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not used";
+    << "Should be NaN as it is not used";
   EXPECT_EQ(2.0, m.getKeyFrame(1).getTime());
   EXPECT_EQ(3.1, m.getKeyFrame(1).getJointPosition("Test_joint_1"));
   EXPECT_EQ(2.2, m.getKeyFrame(1).getJointPosition("Test_joint_2"));
   EXPECT_EQ(2.3, m.getKeyFrame(1).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(1).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not used";
+    << "Should be NaN as it is not used";
   EXPECT_EQ(Motion::DEFAULT_TIME, m.getKeyFrame(2).getTime());
   EXPECT_EQ(1.1, m.getKeyFrame(2).getJointPosition("Test_joint_1"));
   EXPECT_EQ(1.2, m.getKeyFrame(2).getJointPosition("Test_joint_2"));
   EXPECT_EQ(1.3, m.getKeyFrame(2).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(2).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not used";
+    << "Should be NaN as it is not used";
 
   m.copyFrame(1, 2);  // Copy frame 1 as frame 2
   EXPECT_EQ(0.0, m.getKeyFrame(0).getTime()) << "Should be 0 as it's first frame";
@@ -198,25 +211,25 @@ TEST(MotionBuilderModelTest, motionTest)
   EXPECT_EQ(1.2, m.getKeyFrame(0).getJointPosition("Test_joint_2"));
   EXPECT_EQ(1.3, m.getKeyFrame(0).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(0).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not used";
+    << "Should be NaN as it is not used";
   EXPECT_EQ(2.0, m.getKeyFrame(1).getTime());
   EXPECT_EQ(3.1, m.getKeyFrame(1).getJointPosition("Test_joint_1"));
   EXPECT_EQ(2.2, m.getKeyFrame(1).getJointPosition("Test_joint_2"));
   EXPECT_EQ(2.3, m.getKeyFrame(1).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(1).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not used";
+    << "Should be NaN as it is not used";
   EXPECT_EQ(2.0, m.getKeyFrame(2).getTime());
   EXPECT_EQ(3.1, m.getKeyFrame(2).getJointPosition("Test_joint_1"));
   EXPECT_EQ(2.2, m.getKeyFrame(2).getJointPosition("Test_joint_2"));
   EXPECT_EQ(2.3, m.getKeyFrame(2).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(2).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not used";
+    << "Should be NaN as it is not used";
   EXPECT_EQ(Motion::DEFAULT_TIME, m.getKeyFrame(3).getTime());
   EXPECT_EQ(1.1, m.getKeyFrame(3).getJointPosition("Test_joint_1"));
   EXPECT_EQ(1.2, m.getKeyFrame(3).getJointPosition("Test_joint_2"));
   EXPECT_EQ(1.3, m.getKeyFrame(3).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(3).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not used";
+    << "Should be NaN as it is not used";
 
   // Test removing frames
   EXPECT_EQ(4, m.size());
@@ -227,13 +240,13 @@ TEST(MotionBuilderModelTest, motionTest)
   EXPECT_EQ(1.2, m.getKeyFrame(0).getJointPosition("Test_joint_2"));
   EXPECT_EQ(1.3, m.getKeyFrame(0).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(0).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not used";
+    << "Should be NaN as it is not used";
   EXPECT_EQ(Motion::DEFAULT_TIME, m.getKeyFrame(1).getTime());
   EXPECT_EQ(1.1, m.getKeyFrame(1).getJointPosition("Test_joint_1"));
   EXPECT_EQ(1.2, m.getKeyFrame(1).getJointPosition("Test_joint_2"));
   EXPECT_EQ(1.3, m.getKeyFrame(1).getJointPosition("Test_joint_3"));
   EXPECT_TRUE(std::isnan(m.getKeyFrame(1).getJointPosition("Test_joint_4")))
-      << "Should be NaN as it is not used";
+    << "Should be NaN as it is not used";
   EXPECT_EQ(2, m.size());
 
   // Test transformation to yaml
@@ -242,44 +255,47 @@ TEST(MotionBuilderModelTest, motionTest)
 
   YAML::Emitter em;
   em << m.print();  // Basic output
-  EXPECT_EQ("joints: [Test_joint_1, Test_joint_2, Test_joint_3]\n"
-            "points:\n  "
-            "- time_from_start: 0\n    "
-            "positions: [1.1, 1.2, 1.3]\n  "
-            "- time_from_start: 2\n    "
-            "positions: [1.1, 1.2, 1.3]\n  "
-            "- time_from_start: 7\n    "
-            "positions: [1.1, 1.2, 1.3]",
-            std::string(em.c_str()));
+  EXPECT_EQ(
+    "joints: [Test_joint_1, Test_joint_2, Test_joint_3]\n"
+    "points:\n  "
+    "- time_from_start: 0\n    "
+    "positions: [1.1, 1.2, 1.3]\n  "
+    "- time_from_start: 2\n    "
+    "positions: [1.1, 1.2, 1.3]\n  "
+    "- time_from_start: 7\n    "
+    "positions: [1.1, 1.2, 1.3]",
+    std::string(em.c_str()));
 
   YAML::Emitter em2;
   em2 << m.print(2.0);  // Downshift 2
-  EXPECT_EQ("joints: [Test_joint_1, Test_joint_2, Test_joint_3]\n"
-            "points:\n  "
-            "- time_from_start: 0\n    "
-            "positions: [1.1, 1.2, 1.3]\n  "
-            "- time_from_start: 4\n    "
-            "positions: [1.1, 1.2, 1.3]\n  "
-            "- time_from_start: 14\n    "
-            "positions: [1.1, 1.2, 1.3]",
-            std::string(em2.c_str()));
+  EXPECT_EQ(
+    "joints: [Test_joint_1, Test_joint_2, Test_joint_3]\n"
+    "points:\n  "
+    "- time_from_start: 0\n    "
+    "positions: [1.1, 1.2, 1.3]\n  "
+    "- time_from_start: 4\n    "
+    "positions: [1.1, 1.2, 1.3]\n  "
+    "- time_from_start: 14\n    "
+    "positions: [1.1, 1.2, 1.3]",
+    std::string(em2.c_str()));
 }
 
-template <typename InputIterator1, typename InputIterator2>
-bool range_equal(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
-                 InputIterator2 last2)
+template<typename InputIterator1, typename InputIterator2>
+bool range_equal(
+  InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
+  InputIterator2 last2)
 {
-  while (first1 != last1 && first2 != last2)
-  {
-    if (*first1 != *first2)
+  while (first1 != last1 && first2 != last2) {
+    if (*first1 != *first2) {
       return false;
+    }
     ++first1;
     ++first2;
   }
   return (first1 == last1) && (first2 == last2);
 }
 
-bool compare_files(const std::string& filename1, const std::string& filename2)
+bool compare_files(const std::string & filename1, const std::string & filename2)
 {
   std::ifstream file1(filename1);
   std::ifstream file2(filename2);
@@ -303,36 +319,36 @@ TEST(MotionBuilderModelTest, motionFromParamTest)
   ASSERT_EQ(XmlRpc::XmlRpcValue::TypeArray, param_to_load["points"].getType());
 
   Motion m(param_to_load,
-           "<robot name=\"testbot\"><joint name=\"arm_left_1_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_left_2_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_left_3_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_left_4_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_left_5_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_left_6_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_left_7_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_right_1_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_right_2_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_right_3_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_right_4_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_right_5_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_right_6_joint\" type=\"revolute\"/>"
-           "<joint name=\"arm_right_7_joint\" type=\"revolute\"/>"
-           "<joint name=\"torso_1_joint\" type=\"revolute\"/>"
-           "<joint name=\"torso_2_joint\" type=\"revolute\"/></robot>",
-           "<?xml version=\"1.0\" ?><robot name=\"testbot\"><group name=\"arm_left\">"
-           "<joint name=\"arm_left_1_joint\" /><joint name=\"arm_left_2_joint\" />"
-           "<joint name=\"arm_left_3_joint\"/><joint name=\"arm_left_4_joint\" />"
-           "<joint name=\"arm_left_5_joint\"/><joint name=\"arm_left_6_joint\"/>"
-           "<joint name=\"arm_left_7_joint\"/></group><group name=\"arm_right\">"
-           "<joint name=\"arm_right_1_joint\" /><joint name=\"arm_right_2_joint\" />"
-           "<joint name=\"arm_right_3_joint\" /><joint name=\"arm_right_4_joint\" />"
-           "<joint name=\"arm_right_5_joint\"/><joint name=\"arm_right_6_joint\"/>"
-           "<joint name=\"arm_right_7_joint\"/></group><group name=\"torso\">"
-           "<joint name=\"torso_1_joint\"/><joint name=\"torso_2_joint\"/></group>"
-           "<group name=\"both_arms\"><group name=\"arm_left\" /><group name=\"arm_right\" />"
-           "</group><group name=\"both_arms_torso\"><group name=\"arm_left\" />"
-           "<group name=\"arm_right\" /><group name=\"torso\" /></group></robot>",
-           { "head_1_joint", "head_2_joint" });
+    "<robot name=\"testbot\"><joint name=\"arm_left_1_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_left_2_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_left_3_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_left_4_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_left_5_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_left_6_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_left_7_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_right_1_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_right_2_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_right_3_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_right_4_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_right_5_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_right_6_joint\" type=\"revolute\"/>"
+    "<joint name=\"arm_right_7_joint\" type=\"revolute\"/>"
+    "<joint name=\"torso_1_joint\" type=\"revolute\"/>"
+    "<joint name=\"torso_2_joint\" type=\"revolute\"/></robot>",
+    "<?xml version=\"1.0\" ?><robot name=\"testbot\"><group name=\"arm_left\">"
+    "<joint name=\"arm_left_1_joint\" /><joint name=\"arm_left_2_joint\" />"
+    "<joint name=\"arm_left_3_joint\"/><joint name=\"arm_left_4_joint\" />"
+    "<joint name=\"arm_left_5_joint\"/><joint name=\"arm_left_6_joint\"/>"
+    "<joint name=\"arm_left_7_joint\"/></group><group name=\"arm_right\">"
+    "<joint name=\"arm_right_1_joint\" /><joint name=\"arm_right_2_joint\" />"
+    "<joint name=\"arm_right_3_joint\" /><joint name=\"arm_right_4_joint\" />"
+    "<joint name=\"arm_right_5_joint\"/><joint name=\"arm_right_6_joint\"/>"
+    "<joint name=\"arm_right_7_joint\"/></group><group name=\"torso\">"
+    "<joint name=\"torso_1_joint\"/><joint name=\"torso_2_joint\"/></group>"
+    "<group name=\"both_arms\"><group name=\"arm_left\" /><group name=\"arm_right\" />"
+    "</group><group name=\"both_arms_torso\"><group name=\"arm_left\" />"
+    "<group name=\"arm_right\" /><group name=\"torso\" /></group></robot>",
+    {"head_1_joint", "head_2_joint"});
 
   // Check correct group selected
   EXPECT_EQ("both_arms_torso", m.getCurrentGroup());
@@ -432,8 +448,9 @@ TEST(MotionBuilderModelTest, motionFromParamTest)
   em << YAML::BeginMap << YAML::Key << "play_motion" << YAML::Value << YAML::BeginMap
      << YAML::Key << "motions" << YAML::Value << YAML::BeginMap << YAML::Key
      << "test_motion" << YAML::Value
-     << m.print(param_to_load["meta"]["name"], param_to_load["meta"]["usage"],
-                param_to_load["meta"]["description"])
+     << m.print(
+    param_to_load["meta"]["name"], param_to_load["meta"]["usage"],
+    param_to_load["meta"]["description"])
      << YAML::EndMap << YAML::EndMap << YAML::EndMap;
 
   std::ofstream ofile("/tmp/tm.yaml");
@@ -447,7 +464,7 @@ TEST(MotionBuilderModelTest, motionFromParamTest)
 }
 }  // namespace pal
 
-int main(int argc, char** argv)
+int main(int argc, char ** argv)
 {
   ros::init(argc, argv, "test_motion_model");
   ros::start();
