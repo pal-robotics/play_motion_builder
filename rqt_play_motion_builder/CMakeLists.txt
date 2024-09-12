@@ -28,4 +28,4 @@ target_link_libraries(${PROJECT_NAME}_gui Qt5::Widgets)
 
 pluginlib_export_plugin_description_file(rqt_gui "plugin.xml")
 
-ament_auto_package(INSTALL_TO_SHARE plugin.xml)
+ament_auto_package()
