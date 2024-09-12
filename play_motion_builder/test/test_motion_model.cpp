@@ -17,8 +17,6 @@
 #include <gtest/gtest.h>
 #include <fstream>
 
-namespace pal
-{
 TEST(MotionBuilderModelTest, jointLimitTest)
 {
   JointModel jm;              // Empty constructor defined
@@ -462,7 +460,6 @@ TEST(MotionBuilderModelTest, motionFromParamTest)
   nh.getParam("test_file_path", filepath);
   EXPECT_TRUE(compare_files("/tmp/tm.yaml", filepath));
 }
-}  // namespace pal
 
 int main(int argc, char ** argv)
 {

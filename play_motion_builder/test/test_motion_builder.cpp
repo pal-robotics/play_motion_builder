@@ -110,6 +110,8 @@ bool compare_files(const std::string & filename1, const std::string & filename2)
 
   return range_equal(begin1, end, begin2, end);
 }
+}  // namespace pal
+
 
 // Test not in building mode
 TEST(MotionBuilderTest, actionNotStartedTest)
@@ -465,8 +467,6 @@ TEST(MotionBuilderTest, editExistingMotion)
   EXPECT_FALSE(srv_edit.response.ok);
   EXPECT_EQ("No motion being built", srv_edit.response.message);
 }
-
-}  // namespace pal
 
 int main(int argc, char ** argv)
 {

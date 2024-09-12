@@ -184,7 +184,6 @@ void ROSMotionBuilderNode::handle_build_motion_accepted(
 
   const auto goal = goal_handle->get_goal();
   if (goal->motion != "") {
-
     if (!get_motion_info_client_->wait_for_service(kTimeout)) {
       RCLCPP_ERROR(
         this->get_logger(), "Timeout while waiting for service %s",
