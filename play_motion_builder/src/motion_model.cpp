@@ -1,62 +1,64 @@
-#include <play_motion_builder/motion_model.h>
+// Copyright (c) 2024 PAL Robotics S.L. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp>
+#include "play_motion_builder/motion_model.hpp"
+
+#include <stdio.h>
 
 #include <fstream>
-#include <stdio.h>
 #include <cstdio>
+#include <thread>
 #include <unordered_set>
 
-namespace pal
-{
-const std::string PrintPoint::TIME_KEY = "time_from_start";
-const std::string PrintPoint::POSITIONS_KEY = "positions";
-const std::string PrintMotion::JOINTS_KEY = "joints";
-const std::string PrintMotion::POINTS_KEY = "points";
-const std::string PrintMeta::META_KEY = "meta";
-const std::string PrintMeta::NAME_KEY = "name";
-const std::string PrintMeta::USAGE_KEY = "usage";
-const std::string PrintMeta::DESC_KEY = "description";
+#include "boost/property_tree/ptree.hpp"
+#include "boost/property_tree/xml_parser.hpp"
 
-namespace
+#include "rclcpp/logging.hpp"
+
+namespace play_motion_builder
 {
-std::string exec(const char *cmd)
+const char PrintMotion::TIME_KEY[] = "times_from_start";
+const char PrintMotion::POSITIONS_KEY[] = "positions";
+const char PrintMotion::JOINTS_KEY[] = "joints";
+const char PrintMeta::META_KEY[] = "meta";
+const char PrintMeta::NAME_KEY[] = "name";
+const char PrintMeta::USAGE_KEY[] = "usage";
+const char PrintMeta::DESC_KEY[] = "description";
+
+KeyFrame::KeyFrame(const rclcpp::Logger & logger, float time_increment)
+: logger_(logger)
+  , time_increment_(time_increment)
 {
-  std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
-  if (!pipe)
-    return "Error";
-  char buffer[1024];
-  std::string result = "";
-  while (!feof(pipe.get()))
-  {
-    if (fgets(buffer, 128, pipe.get()) != NULL)
-      result += buffer;
-  }
-  return result;
+  RCLCPP_INFO_STREAM(logger_, "frame created");
 }
-}  // namespace
 
-KeyFrame::KeyFrame(float time_increment) : time_increment_(time_increment)
+KeyFrame::KeyFrame(const KeyFrame & k)
+: logger_(k.logger_)
+  , joints_(k.joints_)
+  , time_increment_(k.time_increment_)
 {
 }
 
-KeyFrame::KeyFrame(const KeyFrame &k) : time_increment_(k.time_increment_)
-{
-  joints_ = k.joints_;
-}
-
-void KeyFrame::addPosition(const std::string &name, double position)
+void KeyFrame::addPosition(const std::string & name, double position)
 {
   joints_.push_back(JointPosition(name, position));
 }
 
-double KeyFrame::getJointPosition(const std::string &joint) const
+double KeyFrame::getJointPosition(const std::string & joint) const
 {
-  for (auto joint_position : joints_)
-  {
-    if (joint_position.joint_name_ == joint)
-    {
+  for (auto joint_position : joints_) {
+    if (joint_position.joint_name_ == joint) {
       return joint_position.position_;
     }
   }
@@ -64,82 +66,72 @@ double KeyFrame::getJointPosition(const std::string &joint) const
   return std::numeric_limits<double>::quiet_NaN();
 }
 
-void KeyFrame::cleanUnused(const std::map<std::string, bool> &used_joints)
+void KeyFrame::cleanUnused(const std::map<std::string, bool> & used_joints)
 {
-  for (unsigned int i = joints_.size(); i > 0; --i)  // Iterate backwards and remove unused
-  {
-    try
-    {
-      if (!used_joints.at(joints_[i - 1].joint_name_))
-      {
+  for (unsigned int i = joints_.size(); i > 0; --i) {  // Iterate backwards and remove unused
+    try {
+      if (!used_joints.at(joints_[i - 1].joint_name_)) {
         joints_.erase(joints_.begin() + i - 1);
       }
-    }
-    catch (std::out_of_range &e)
-    {
-      ROS_ERROR_STREAM("Key: " << joints_[i - 1].joint_name_ << " is unknown");
+    } catch (std::out_of_range & e) {
+      RCLCPP_ERROR_STREAM(logger_, "Key: " << joints_[i - 1].joint_name_ << " is unknown");
       throw e;
     }
   }
 }
 
-PrintPoint KeyFrame::print(double basetime, double downshift,
-                           const std::vector<std::string> &names) const
+Point KeyFrame::get_point(
+  double basetime, double downshift,
+  const std::vector<std::string> & names) const
 {
-  PrintPoint pp;
-  pp.time_from_start_ = basetime + (downshift * time_increment_);
+  Point p;
+  p.time_from_start_ = basetime + (downshift * time_increment_);
 
-  for (auto joint_name : names)
-  {
-    pp.positions_.push_back(getJointPosition(joint_name));
+  for (auto joint_name : names) {
+    p.positions_.push_back(getJointPosition(joint_name));
   }
 
-  return pp;
+  return p;
 }
 
-PrintMotion KeyFrame::print(const std::vector<std::string> &names) const
+PrintMotion KeyFrame::print(const std::vector<std::string> & names) const
 {
   PrintMotion pm;
-  PrintPoint pp;
 
-  for (auto joint : joints_)
-  {
-    if (std::find(names.begin(), names.end(), joint.joint_name_) != names.end())
-    {
+  for (auto joint : joints_) {
+    if (std::find(names.begin(), names.end(), joint.joint_name_) != names.end()) {
       pm.joints_.push_back(joint.joint_name_);
-      pp.positions_.push_back(joint.position_);
+      pm.positions_.push_back(joint.position_);
     }
   }
 
-  pp.time_from_start_ = 0.0;
-  pm.points_.push_back(pp);
+  pm.times_ = {0.0};
   pm.meta_.print_ = false;
   return pm;
 }
 
 const float Motion::DEFAULT_TIME = 5.0;
 
-Motion::Motion(const std::string &robot_description, const std::string &robot_description_semantic,
-               const std::vector<std::string> &extra_joints)
-  : tmp_name_("")
+Motion::Motion(
+  const rclcpp::Logger & logger,
+  const std::string & robot_description, const std::string & robot_description_semantic,
+  const std::vector<std::string> & extra_joints)
+: logger_(logger)
+  , tmp_name_("")
 {
   // Collect "out of group" joints
-  for (const auto &joint : extra_joints)
-  {
+  for (const auto & joint : extra_joints) {
     extra_joints_[joint] = true;
   }
 
   // Load groups
-  if (robot_description != "" && robot_description_semantic != "")
-  {
+  if (robot_description != "" && robot_description_semantic != "") {
     setMotionGroups(robot_description, robot_description_semantic);
 
     // Pre-select biggest group
     uint size = 0;
-    for (const auto &group : joint_groups_)
-    {
-      if (group.second.size() >= size)
-      {
+    for (const auto & group : joint_groups_) {
+      if (group.second.size() >= size) {
         group_used_ = group.first;
         size = group.second.size();
       }
@@ -147,86 +139,79 @@ Motion::Motion(const std::string &robot_description, const std::string &robot_de
   }
 }
 
-Motion::Motion(XmlRpc::XmlRpcValue &param, const std::string &robot_description,
-               const std::string &robot_description_semantic,
-               const std::vector<std::string> &extra_joints)
-  : Motion(robot_description, robot_description_semantic, extra_joints)
+Motion::Motion(
+  const rclcpp::Logger & logger,
+  const play_motion2_msgs::msg::Motion & motion_cfg,
+  const std::string & robot_description,
+  const std::string & robot_description_semantic,
+  const std::vector<std::string> & extra_joints)
+: Motion(logger, robot_description, robot_description_semantic, extra_joints)
 {
-  if (param["joints"].getType() == XmlRpc::XmlRpcValue::TypeArray)
-  {
-    // Load used joints
-    ROS_INFO("Joint used:");
-    std::vector<std::string> names;
-    for (int i = 0; i < param["joints"].size(); ++i)
-    {
-      names.push_back(static_cast<std::string>(param["joints"][i]));
-      ROS_INFO_STREAM(static_cast<std::string>(param["joints"][i]));
-    }
+  // Load used joints
+  RCLCPP_INFO(logger_, "Joint used:");
+  std::vector<std::string> names;
+  for (const auto & joint : motion_cfg.joints) {
+    names.push_back(joint);
+    RCLCPP_INFO_STREAM(logger_, joint);
+  }
 
-    // Set state for extra joints
-    for (auto &joint : extra_joints_)
-    {
-      joint.second = std::find(names.begin(), names.end(), joint.first) != names.end();
-    }
+  // Set state for extra joints
+  for (auto & joint : extra_joints_) {
+    joint.second = std::find(names.begin(), names.end(), joint.first) != names.end();
+  }
 
-    // Find used group (biggest group with all joints used)
-    std::string group_used = "";
-    uint size = 0;
-    for (const auto &group : joint_groups_)
-    {
-      // Used group can't have more joints, only check if bigger than found
-      if (group.second.size() <= names.size() && group.second.size() > size)
-      {
-        // Check if all joints are used
-        bool all_used = true;
-        for (const std::string &joint : group.second)
-        {
-          if (std::find(names.begin(), names.end(), joint) == names.end())
-          {
-            ROS_INFO_STREAM("Joint " << joint << " from group " << group.first << " not in use");
-            all_used = false;
-            break;
-          }
-        }
-
-        // If all used, choose this one
-        if (all_used)
-        {
-          size = group.second.size();
-          group_used = group.first;
-          ROS_INFO_STREAM("Found group candidate " << group_used);
+  // Find used group (biggest group with all joints used)
+  std::string group_used = "";
+  uint size = 0;
+  for (const auto & group : joint_groups_) {
+    // Used group can't have more joints, only check if bigger than found
+    if (group.second.size() <= names.size() && group.second.size() > size) {
+      // Check if all joints are used
+      bool all_used = true;
+      for (const std::string & joint : group.second) {
+        if (std::find(names.begin(), names.end(), joint) == names.end()) {
+          RCLCPP_INFO_STREAM(
+            logger_,
+            "Joint " << joint << " from group " << group.first << " not in use");
+          all_used = false;
+          break;
         }
       }
-      else
-      {
-        ROS_INFO_STREAM("Group " << group.first << " discarded (" << group.second.size()
-                                 << "<=" << names.size() << " && " << group.second.size()
-                                 << ">" << size << ")");
-      }
-    }
-    group_used_ = group_used;
 
-    // Populate motion
-    if (param["points"].getType() == XmlRpc::XmlRpcValue::TypeArray)
-    {
-      float last_time = 0.0f;
-      for (int i = 0; i < param["points"].size(); ++i)
-      {
-        KeyFrame k(toDouble(param["points"][i]["time_from_start"]) - last_time);
-        // Load joints in order
-        for (int j = 0; j < param["points"][i]["positions"].size(); ++j)
-        {
-          k.addPosition(names[j], toDouble(param["points"][i]["positions"][j]));
-        }
-        keyframes_.push_back(k);
-        last_time += k.getTime();
+      // If all used, choose this one
+      if (all_used) {
+        size = group.second.size();
+        group_used = group.first;
+        RCLCPP_INFO_STREAM(logger_, "Found group candidate " << group_used);
       }
+    } else {
+      RCLCPP_INFO_STREAM(
+        logger_,
+        "Group " << group.first << " discarded (" << group.second.size()
+                 << "<=" << names.size() << " && " << group.second.size()
+                 << ">" << size << ")");
     }
+  }
+  group_used_ = group_used;
+
+  // Populate motion
+  auto last_time = 0.0f;
+  auto offset = 0u;
+  for (auto i = 0u; i < motion_cfg.times_from_start.size(); ++i) {
+    KeyFrame k(logger_, motion_cfg.times_from_start[i] - last_time);
+    // Load joints in order
+    for (auto j = 0u; j < motion_cfg.joints.size(); ++j) {
+      k.addPosition(names[j], motion_cfg.positions[j + offset]);
+    }
+    offset += motion_cfg.joints.size();
+    keyframes_.push_back(k);
+    last_time += k.getTime();
   }
 }
 
-void Motion::setMotionGroups(const std::string &robot_description,
-                             const std::string &robot_description_semantic)
+void Motion::setMotionGroups(
+  const std::string & robot_description,
+  const std::string & robot_description_semantic)
 {
   // Load XML robot's description
   boost::property_tree::ptree tree_robot;
@@ -235,34 +220,29 @@ void Motion::setMotionGroups(const std::string &robot_description,
 
   // Find all actuable joints
   std::unordered_set<std::string> actuable_joints;
-  for (boost::property_tree::ptree::value_type &joint : tree_robot.get_child("robot"))
-  {
-    if (joint.first != "joint")  // Ignore others
+  for (boost::property_tree::ptree::value_type & joint : tree_robot.get_child("robot")) {
+    if (joint.first != "joint") {   // Ignore others
       continue;
+    }
 
     // Get joint name
     std::string joint_name;
     bool is_actuable = true;
-    for (boost::property_tree::ptree::value_type &joint_child : joint.second)
-    {
-      if (joint_child.first == "<xmlattr>")
-      {
-        for (boost::property_tree::ptree::value_type &joint_att : joint_child.second)
-        {
-          if (joint_att.first == "name")
-          {
+    for (boost::property_tree::ptree::value_type & joint_child : joint.second) {
+      if (joint_child.first == "<xmlattr>") {
+        for (boost::property_tree::ptree::value_type & joint_att : joint_child.second) {
+          if (joint_att.first == "name") {
             joint_name = joint_att.second.data();
-          }
-          else if (joint_att.first == "type" && joint_att.second.data() == "fixed")
+          } else if (joint_att.first == "type" && joint_att.second.data() == "fixed") {
             is_actuable = false;
+          }
         }
       }
     }
 
-    if (is_actuable)
-    {
+    if (is_actuable) {
       actuable_joints.insert(joint_name);
-      ROS_DEBUG_STREAM("Actuable joint: " << joint_name);
+      RCLCPP_DEBUG_STREAM(logger_, "Actuable joint: " << joint_name);
     }
   }
 
@@ -273,166 +253,167 @@ void Motion::setMotionGroups(const std::string &robot_description,
 
   // Load groups
   std::vector<std::pair<std::string, std::string>> pending_groups_;
-  for (boost::property_tree::ptree::value_type &group : tree_semantic.get_child("robot"))
-  {
-    if (group.first != "group")  // Ignore others
+  for (boost::property_tree::ptree::value_type & group : tree_semantic.get_child("robot")) {
+    if (group.first != "group") {   // Ignore others
       continue;
+    }
 
     // Get group name
     std::string group_name = "";
-    for (boost::property_tree::ptree::value_type &group_child : group.second)
-    {
-      if (group_child.first == "<xmlattr>")
-      {
-        for (boost::property_tree::ptree::value_type &group_att : group_child.second)
-        {
-          if (group_att.first == "name")
-          {
+    for (boost::property_tree::ptree::value_type & group_child : group.second) {
+      if (group_child.first == "<xmlattr>") {
+        for (boost::property_tree::ptree::value_type & group_att : group_child.second) {
+          if (group_att.first == "name") {
             group_name = group_att.second.data();
-            ROS_DEBUG_STREAM("Group name: " << group_name);
+            RCLCPP_DEBUG_STREAM(logger_, "Group name: " << group_name);
           }
         }
-      }
-      else if (group_child.first == "joint")
-      {
-        for (boost::property_tree::ptree::value_type &joint_att :
-             group_child.second.get_child("<xmlattr>"))
+      } else if (group_child.first == "joint") {
+        for (boost::property_tree::ptree::value_type & joint_att :
+          group_child.second.get_child("<xmlattr>"))
         {
           // Add only actuable joints, that are not present in the extra_joints list
           if (joint_att.first == "name" &&
-              actuable_joints.find(joint_att.second.data()) != actuable_joints.end() &&
-              extra_joints_.find(joint_att.second.data()) == extra_joints_.end())
+            actuable_joints.find(joint_att.second.data()) != actuable_joints.end() &&
+            extra_joints_.find(joint_att.second.data()) == extra_joints_.end())
           {
             addJointToGroup(group_name, joint_att.second.data());
-            ROS_DEBUG_STREAM("Add joint " << joint_att.second.data() << " to " << group_name);
+            RCLCPP_DEBUG_STREAM(
+              logger_,
+              "Add joint " << joint_att.second.data() << " to " << group_name);
           }
         }
-      }
-      else if (group_child.first == "group")
-      {
-        for (boost::property_tree::ptree::value_type &subgroup_att :
-             group_child.second.get_child("<xmlattr>"))
+      } else if (group_child.first == "group") {
+        for (boost::property_tree::ptree::value_type & subgroup_att :
+          group_child.second.get_child("<xmlattr>"))
         {
-          if (subgroup_att.first == "name")
-          {
-            if (!addGroupToGroup(group_name, subgroup_att.second.data()))
-            {
+          if (subgroup_att.first == "name") {
+            if (!addGroupToGroup(group_name, subgroup_att.second.data())) {
               pending_groups_.push_back(std::make_pair(group_name, subgroup_att.second.data()));
-              ROS_DEBUG_STREAM("Wait for group" << subgroup_att.second.data() << " to be loaded");
+              RCLCPP_DEBUG_STREAM(
+                logger_,
+                "Wait for group" << subgroup_att.second.data() << " to be loaded");
             }
-            ROS_DEBUG_STREAM("Add group " << subgroup_att.second.data() << " to " << group_name);
+            RCLCPP_DEBUG_STREAM(
+              logger_,
+              "Add group " << subgroup_att.second.data() << " to " << group_name);
           }
         }
       }
     }
   }
   // Process subgroups that weren't loaded in order
-  for (const auto &pair : pending_groups_)
+  for (const auto & pair : pending_groups_) {
     addGroupToGroup(pair.first, pair.second);
+  }
 
   // Clean empty groups
   std::vector<std::string> groups_to_remove;
-  for (const auto &pair : joint_groups_)
-  {
-    if (pair.second.size() == 0)
+  for (const auto & pair : joint_groups_) {
+    if (pair.second.size() == 0) {
       groups_to_remove.push_back(pair.first);
+    }
   }
-  for (const auto &group: groups_to_remove)
+  for (const auto & group : groups_to_remove) {
     joint_groups_.erase(joint_groups_.find(group));
+  }
 
   // Add empty group
   joint_groups_["None"] = {};
-  ROS_DEBUG_STREAM("Joints loaded");
+  RCLCPP_DEBUG_STREAM(logger_, "Joints loaded");
 }
 
 void Motion::setParamName()
 {
   std::string random = "";
   static const char num[] = "0123456789";
-  for (int i = 0; i < 5; ++i)
-  {
+  for (int i = 0; i < 5; ++i) {
     random.append(std::to_string(num[rand() % (sizeof(num) - 1)]));
   }
 
   tmp_name_ = "m_" + random;
 }
 
-void Motion::addKeyFrame(const sensor_msgs::JointStateConstPtr &msg, float time_increment)
+void Motion::addKeyFrame(
+  const sensor_msgs::msg::JointState & msg,
+  float time_increment)
 {
-  KeyFrame k(time_increment);
+  KeyFrame k(logger_, time_increment);
 
-  if (keyframes_.size() == 0)  // The first frame has default time 0
-  {
+  if (keyframes_.size() == 0) {   // The first frame has default time 0
     k.setTime(0.0);
   }
 
-  for (unsigned int i = 0; i < msg->name.size(); ++i)
-  {
-    if (isJointUsed(msg->name[i]))
-    {
-      k.addPosition(msg->name[i], msg->position[i]);
+  for (unsigned int i = 0; i < msg.name.size(); ++i) {
+    if (isJointUsed(msg.name[i])) {
+      k.addPosition(msg.name[i], msg.position[i]);
     }
   }
 
   keyframes_.push_back(k);
 }
 
-void Motion::updateKeyFrame(const sensor_msgs::JointStateConstPtr &msg, int frame)
+KeyFrame & Motion::getKeyFrame(const int frame)
+{
+  if (static_cast<uint64_t>(frame) >= keyframes_.size()) {
+    throw std::out_of_range("Keyframe " + std::to_string(frame) + " doesn't exist");
+  }
+
+  return keyframes_[frame];
+}
+
+void Motion::updateKeyFrame(const sensor_msgs::msg::JointState & msg, int frame)
 {
   for (std::vector<JointPosition>::iterator it = keyframes_[frame].getJoints().begin();
-       it != keyframes_[frame].getJoints().end(); ++it)
+    it != keyframes_[frame].getJoints().end(); ++it)
   {
-    for (unsigned int i = 0; i < msg->name.size(); ++i)
-    {
-      if (msg->name[i] == it->joint_name_)
-      {
-        it->position_ = msg->position[i];
+    for (unsigned int i = 0; i < msg.name.size(); ++i) {
+      if (msg.name[i] == it->joint_name_) {
+        it->position_ = msg.position[i];
         break;
       }
     }
   }
 }
 
-void Motion::addJointModel(const std::string &joint_name, const JointModel &joint_model)
+void Motion::addJointModel(const std::string & joint_name, const JointModel & joint_model)
 {
   joint_models_[joint_name] = joint_model;
 }
 
 void Motion::changeTime(int frame, float time_increment)
 {
-  if ((unsigned long)frame >= keyframes_.size())
-  {
-    ROS_ERROR_STREAM("Keyframe " << frame << " doesn't exist");
-    throw ros::Exception("Keyframe " + std::to_string(frame) + " doesn't exist");
+  if (static_cast<uint64_t>(frame) >= keyframes_.size()) {
+    RCLCPP_ERROR_STREAM(logger_, "Keyframe " << frame << " doesn't exist");
+    throw std::invalid_argument("Keyframe " + std::to_string(frame) + " doesn't exist");
   }
 
   keyframes_[frame].setTime(time_increment);
 }
 
-double Motion::changeJoint(int frame, const std::string &joint_name, double position)
+double Motion::changeJoint(int frame, const std::string & joint_name, double position)
 {
-  if ((unsigned long)frame >= keyframes_.size())
-  {
-    ROS_ERROR_STREAM("Keyframe " << frame << " doesn't exist");
-    throw ros::Exception("Keyframe " + std::to_string(frame) + " doesn't exist");
+  if (static_cast<uint64_t>(frame) >= keyframes_.size()) {
+    RCLCPP_ERROR_STREAM(logger_, "Keyframe " << frame << " doesn't exist");
+    throw std::invalid_argument("Keyframe " + std::to_string(frame) + " doesn't exist");
   }
 
   for (std::vector<JointPosition>::iterator it = keyframes_[frame].getJoints().begin();
-       it != keyframes_[frame].getJoints().end(); ++it)
+    it != keyframes_[frame].getJoints().end(); ++it)
   {
-    if (it->joint_name_ == joint_name)
-    {
-      if (joint_models_[joint_name].inLimits(position))
-      {
+    if (it->joint_name_ == joint_name) {
+      if (joint_models_[joint_name].inLimits(position)) {
         it->position_ = position;
       }
 
-      return it->position_;  // Done
+      return it->position_;   // Done
     }
   }
 
-  ROS_ERROR_STREAM("Joint " << joint_name << " doesn't exist");
-  throw ros::Exception("Joint " + joint_name + " doesn't exist");
+  RCLCPP_ERROR_STREAM(logger_, "Joint " << joint_name << " doesn't exist");
+  throw std::invalid_argument("Joint " + joint_name + " doesn't exist");
+  throw std::runtime_error("");
+  return -1.0;
 }
 
 void Motion::removeKeyFrame(int frame)
@@ -444,102 +425,55 @@ void Motion::copyFrame(int frame, int new_frame_pos)
 {
   KeyFrame k(keyframes_[frame]);
 
-  if (k.getTime() == 0)  // Only the first frame may have time 0
-  {
+  const auto EPSILON = 1e-10;
+  if (std::abs(k.getTime()) < EPSILON) {   // Only the first frame may have time 0
     k.setTime(DEFAULT_TIME);
   }
 
-  if (new_frame_pos < 0)
-  {
+  if (new_frame_pos < 0) {
     keyframes_.push_back(k);
-  }
-  else
-  {
+  } else {
     keyframes_.insert(keyframes_.begin() + new_frame_pos, k);
   }
 }
 
-void Motion::loadFrame(int frame) const
+void Motion::extendFrames(const sensor_msgs::msg::JointState & msg)
 {
-  YAML::Emitter em;
-  /* clang-format off */
-  em << YAML::BeginMap
-    << YAML::Key << "play_motion"
-      << YAML::Value << YAML::BeginMap
-        << YAML::Key << "motions"
-            << YAML::Value <<  YAML::BeginMap
-        << YAML::Key << getParamName()
-            << YAML::Value << keyframes_[frame].print(getJoints())
-      << YAML::EndMap
-    << YAML::EndMap
-  << YAML::EndMap;
-  /* clang-format on */
-
-  // Build file
-  // ROS_INFO_STREAM("YAML: \n" << motion_yaml);
-  loadParams(em, getParamName());
-}
-
-void Motion::loadYAML(double downshift) const
-{
-  YAML::Emitter em;
-  /* clang-format off */
-  em << YAML::BeginMap
-    << YAML::Key << "play_motion"
-      << YAML::Value << YAML::BeginMap
-        << YAML::Key << "motions"
-            << YAML::Value <<  YAML::BeginMap
-        << YAML::Key << getParamName()
-            << YAML::Value << print(downshift)
-      << YAML::EndMap
-    << YAML::EndMap
-  << YAML::EndMap;
-  /* clang-format on */
-
-  // Build file
-  // ROS_INFO_STREAM("YAML: \n" << motion_yaml);
-  loadParams(em, getParamName());
-}
-
-void Motion::extendFrames(const sensor_msgs::JointStateConstPtr &msg)
-{
-  for (unsigned int i = 0; i < msg->name.size(); ++i)
-  {
-    if (!isJointUsed(msg->name[i]))
-    {
-      for (std::vector<KeyFrame>::iterator it = keyframes_.begin(); it != keyframes_.end(); ++it)
+  for (unsigned int i = 0; i < msg.name.size(); ++i) {
+    if (!isJointUsed(msg.name[i])) {
+      for (std::vector<KeyFrame>::iterator it = keyframes_.begin(); it != keyframes_.end();
+        ++it)
       {
-        if (std::isnan(it->getJointPosition(msg->name[i])))
-        {
-          it->addPosition(msg->name[i], msg->position[i]);
+        if (std::isnan(it->getJointPosition(msg.name[i]))) {
+          it->addPosition(msg.name[i], msg.position[i]);
         }
       }
     }
   }
 }
 
-void Motion::addJointToGroup(const std::string &group, const std::string &joint)
+void Motion::addJointToGroup(const std::string & group, const std::string & joint)
 {
-  if (joint_groups_.find(group) == joint_groups_.end())
+  if (joint_groups_.find(group) == joint_groups_.end()) {
     joint_groups_[group] = {};
+  }
 
   joint_groups_.at(group).push_back(joint);
 }
 
-bool Motion::addGroupToGroup(const std::string &group, const std::string &subgroup)
+bool Motion::addGroupToGroup(const std::string & group, const std::string & subgroup)
 {
-  if (joint_groups_.find(group) == joint_groups_.end())
+  if (joint_groups_.find(group) == joint_groups_.end()) {
     joint_groups_[group] = {};
-
-  if (joint_groups_.find(subgroup) != joint_groups_.end())
-  {
-    joint_groups_.at(group).insert(joint_groups_.at(group).end(),
-                                   joint_groups_.at(subgroup).begin(),
-                                   joint_groups_.at(subgroup).end());
-    return true;
   }
-  else
-  {
+
+  if (joint_groups_.find(subgroup) != joint_groups_.end()) {
+    joint_groups_.at(group).insert(
+      joint_groups_.at(group).end(),
+      joint_groups_.at(subgroup).begin(),
+      joint_groups_.at(subgroup).end());
+    return true;
+  } else {
     // Subgroup is not yet loaded
     return false;
   }
@@ -555,134 +489,109 @@ void Motion::removeAllKeyFrames()
   keyframes_.clear();
 }
 
-PrintMotion Motion::print(const std::string &name, const std::string &usage,
-                          const std::string &description, double downshift) const
+PrintMotion Motion::print(
+  const std::string & name, const std::string & usage,
+  const std::string & description, double downshift) const
 {
   PrintMotion pm;
   pm.joints_ = getJoints();
 
   double basetime = 0.0;
-  for (auto frame : keyframes_)
-  {
-    pm.points_.push_back(frame.print(basetime, downshift, pm.joints_));
-    basetime = pm.points_.back().time_from_start_;
+  for (const auto & frame : keyframes_) {
+    const auto point = frame.get_point(basetime, downshift, pm.joints_);
+    pm.positions_.insert(pm.positions_.end(), point.positions_.begin(), point.positions_.end());
+    pm.times_.push_back(point.time_from_start_);
+    basetime = pm.times_.back();
   }
 
-  if (name != "" || usage != "" || description != "")
-  {
+  if (name != "" || usage != "" || description != "") {
     pm.meta_.print_ = true;
     pm.meta_.name_ = name;
     pm.meta_.usage_ = usage;
     pm.meta_.description_ = description;
-  }
-  else
-  {
+  } else {
     pm.meta_.print_ = false;
   }
 
   return pm;
 }
 
-void loadParams(const YAML::Emitter &param, const std::string &name)
-{
-  // Clean param
-  exec(("rosparam delete /play_motion/motions/" + name).c_str());
-
-  // Open file
-  std::ofstream ofile("/tmp/" + name + ".yaml");
-  ofile << param.c_str();
-  ROS_INFO_STREAM("File /tmp/" << name << ".yaml written");
-  ofile.close();
-
-  // Loat to ros
-  exec(("rosparam load /tmp/" + name + ".yaml").c_str());
-  ros::Duration d(1.0);
-  d.sleep();
-}
-
-std::string cleanName(const std::string &name)
+std::string cleanName(const std::string & name)
 {
   return name.substr(0, name.size() - 6);
 }
 
-std::string rosifyName(const std::string &name)
+std::string rosifyName(const std::string & name)
 {
   return name + "_joint";
 }
-
-double toDouble(XmlRpc::XmlRpcValue &value)
-{
-  double val = std::numeric_limits<double>::quiet_NaN();
-  if (value.getType() == XmlRpc::XmlRpcValue::TypeDouble)
-  {
-    val = static_cast<double>(value);
-  }
-  else if (value.getType() == XmlRpc::XmlRpcValue::TypeInt)
-  {
-    val = static_cast<int>(value);
-  }
-  else
-  {
-    ROS_ERROR_STREAM("Unknown time type: " << value.getType());
-  }
-
-  return val;
-}
-}  // namespace pal
+}  // namespace play_motion_builder
 
 namespace YAML
 {
-Emitter &operator<<(YAML::Emitter &out, const pal::PrintMotion &m)
+Emitter & operator<<(YAML::Emitter & out, const play_motion_builder::PrintMotion & m)
 {
+  // Ensure precision is set for floating-point numbers
   out.SetFloatPrecision(5);
   out.SetDoublePrecision(5);
 
+  // Lambda to format double values to 5 decimal places and always show .0 for whole numbers
+  auto formatInteger = [](double value) -> std::string {
+      std::stringstream ss;
+      ss << std::fixed << std::setprecision(1) << value;
+      return ss.str();
+    };
 
-  /* clang-format off */
-    out << YAML::BeginMap
-      << YAML::Key << pal::PrintMotion::JOINTS_KEY
-        << YAML::Value << YAML::Flow << m.joints_
-      << YAML::Key << pal::PrintMotion::POINTS_KEY
-         << m.points_
-      << m.meta_
-    << YAML::EndMap;
-  /* clang-format on */
+  // Emit YAML with formatted doubles
+  out << YAML::BeginMap
+      << YAML::Key << play_motion_builder::PrintMotion::JOINTS_KEY
+      << YAML::Value << YAML::Flow << m.joints_
+      << YAML::Key << play_motion_builder::PrintMotion::POSITIONS_KEY
+      << YAML::Value << YAML::Flow;
 
-  return out;
-}
+  out << YAML::BeginSeq;
+  for (const auto & pos : m.positions_) {
+    const int int_pos = static_cast<int>(pos);
+    if (std::abs(pos) > std::abs(int_pos)) {  // Check if the number is an integer
+      out << pos;
+    } else {
+      out << formatInteger(pos);
+    }
+  }
+  out << YAML::EndSeq;
 
-Emitter &operator<<(YAML::Emitter &out, const pal::PrintPoint &k)
-{
-  out.SetFloatPrecision(5);
-  out.SetDoublePrecision(5);
+  out << YAML::Key << play_motion_builder::PrintMotion::TIME_KEY
+      << YAML::Value << YAML::Flow;
 
-  /* clang-format off */
-    out << YAML::BeginMap
-      << YAML::Key << pal::PrintPoint::TIME_KEY
-        << YAML::Value << k.time_from_start_
-      << YAML::Key << pal::PrintPoint::POSITIONS_KEY
-        << YAML::Value << YAML::Flow << k.positions_
-    << YAML::EndMap;
-  /* clang-format on */
+  out << YAML::BeginSeq;
+  for (const auto & time : m.times_) {
+    const int int_time = static_cast<int>(time);
+    if (std::abs(time) > std::abs(int_time)) {   // Check if the number is an integer
+      out << time;
+    } else {
+      out << formatInteger(time);
+    }
+  }
+  out << YAML::EndSeq;
 
-  return out;
-}
-
-Emitter &operator<<(YAML::Emitter &out, const pal::PrintMeta &m)
-{
-  if (m.print_)
-  {
-    /* clang-format off */
-      out << YAML::Key << pal::PrintMeta::META_KEY << YAML::Value
-      << YAML::BeginMap
-        << YAML::Key << pal::PrintMeta::NAME_KEY
-          << YAML::Value << m.name_
-        << YAML::Key << pal::PrintMeta::USAGE_KEY
-          << YAML::Value << YAML::Flow << m.usage_
-        << YAML::Key << pal::PrintMeta::DESC_KEY
-          << YAML::Value << YAML::Flow << m.description_
+  out << m.meta_
       << YAML::EndMap;
-    /* clang-format on */
+
+  return out;
+}
+
+Emitter & operator<<(YAML::Emitter & out, const play_motion_builder::PrintMeta & m)
+{
+  if (m.print_) {
+    out << YAML::Key << play_motion_builder::PrintMeta::META_KEY << YAML::Value
+        << YAML::BeginMap
+        << YAML::Key << play_motion_builder::PrintMeta::NAME_KEY
+        << YAML::Value << m.name_
+        << YAML::Key << play_motion_builder::PrintMeta::USAGE_KEY
+        << YAML::Value << YAML::Flow << m.usage_
+        << YAML::Key << play_motion_builder::PrintMeta::DESC_KEY
+        << YAML::Value << YAML::Flow << m.description_
+        << YAML::EndMap;
   }
 
   return out;
