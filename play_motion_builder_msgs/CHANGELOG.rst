@@ -2,8 +2,8 @@
 Changelog for package play_motion_builder_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.0 (2025-10-01)
+------------------
 * Update License
 * Port play_motion_builder_msgs
 * Ignore packages

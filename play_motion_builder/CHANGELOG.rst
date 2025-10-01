@@ -2,8 +2,8 @@
 Changelog for package play_motion_builder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.0 (2025-10-01)
+------------------
 * Update License
 * Fix service name for latest play_motion2 changes
 * Remove namespace from TEST macros
