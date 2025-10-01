@@ -2,6 +2,13 @@
 Changelog for package play_motion_builder_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Update License
+* Port play_motion_builder_msgs
+* Ignore packages
+* Contributors: Noel Jimenez
+
 1.2.0 (2024-05-14)
 ------------------
 

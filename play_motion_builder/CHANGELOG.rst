@@ -2,6 +2,15 @@
 Changelog for package play_motion_builder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Update License
+* Fix service name for latest play_motion2 changes
+* Remove namespace from TEST macros
+* Port play_motion_builder and rtq interface
+* Ignore packages
+* Contributors: Noel Jimenez
+
 1.2.0 (2024-05-14)
 ------------------
 * Merge branch 'fix/nan-value-bug' into 'master'

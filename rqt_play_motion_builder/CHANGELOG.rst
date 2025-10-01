@@ -2,6 +2,13 @@
 Changelog for package rqt_play_motion_builder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Remove plugin.xml installation
+* Port play_motion_builder and rtq interface
+* Ignore packages
+* Contributors: Noel Jimenez
+
 1.2.0 (2024-05-14)
 ------------------
 
