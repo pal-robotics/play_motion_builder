@@ -70,7 +70,7 @@ bool ROSMotionBuilderNode::initialize()
 
   // Get extra joints
   auto play_motion_params_getter =
-    this->create_client<GetParameters>("/play_motion2/get_parameters");
+    this->create_client<GetParameters>("/play_motion2_executor/get_parameters");
 
   if (!play_motion_params_getter->wait_for_service(kTimeout)) {
     if (!rclcpp::ok()) {
