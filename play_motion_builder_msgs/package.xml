@@ -6,8 +6,8 @@
 
   <maintainer email="david.fernandez@pal-robotics.com">davidfernandez</maintainer>
 
-  <license>LGPL-3.0</license>
-
+  <license>Apache License 2.0</license>
+  
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>action_msgs</depend>
