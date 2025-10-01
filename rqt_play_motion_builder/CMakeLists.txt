@@ -28,4 +28,9 @@ target_link_libraries(${PROJECT_NAME}_gui Qt5::Widgets)
 
 pluginlib_export_plugin_description_file(rqt_gui "plugin.xml")
 
-ament_auto_package()
+if(ament_cmake_auto_VERSION VERSION_LESS "2.6.0")
+  ament_auto_package(USE_SCOPED_HEADER_INSTALL_DIR)
+else()
+  ament_auto_package()
+endif()
+
