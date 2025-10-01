@@ -2,6 +2,11 @@
 Changelog for package rqt_play_motion_builder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fix ament_auto warning about headers install destination
+* Contributors: Noel Jimenez
+
 1.3.0 (2025-10-01)
 ------------------
 * Remove plugin.xml installation
