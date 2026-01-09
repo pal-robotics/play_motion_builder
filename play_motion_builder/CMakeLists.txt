@@ -4,6 +4,8 @@ project(play_motion_builder)
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
+add_compile_definitions(RCLCPP_VERSION_MAJOR=${rclcpp_VERSION_MAJOR})
+
 # motion_model_lib
 ament_auto_add_library(motion_model_lib SHARED
   src/motion_model.cpp
