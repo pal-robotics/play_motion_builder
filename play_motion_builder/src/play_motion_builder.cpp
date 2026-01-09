@@ -132,7 +132,7 @@ bool ROSMotionBuilderNode::initialize()
 
   get_motion_info_client_ =
     this->create_client<GetMotionInfo>(
-    "/play_motion2/get_motion_info", rmw_qos_profile_default, cb_group_);
+    "/play_motion2/get_motion_info", get_services_qos(), cb_group_);
 
   return true;
 }
