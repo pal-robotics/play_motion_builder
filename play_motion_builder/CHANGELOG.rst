@@ -2,8 +2,8 @@
 Changelog for package play_motion_builder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.1 (2026-01-09)
+------------------
 * Fix rmw_qos_profile_t deprecation
 * Contributors: Noel Jimenez
 
