@@ -24,6 +24,11 @@ ament_auto_add_library(${PROJECT_NAME}_gui SHARED
 )
 target_link_libraries(${PROJECT_NAME}_gui Qt5::Widgets)
 
+install(
+  PROGRAMS scripts/rqt_play_motion_builder
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 # class_loader_hide_library_symbols(${PROJECT_NAME}_gui)
 
 pluginlib_export_plugin_description_file(rqt_gui "plugin.xml")
@@ -33,4 +38,3 @@ if(ament_cmake_auto_VERSION VERSION_LESS "2.6.0")
 else()
   ament_auto_package()
 endif()
-
