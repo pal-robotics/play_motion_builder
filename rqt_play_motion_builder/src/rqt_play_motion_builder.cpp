@@ -193,7 +193,7 @@ void RQTPlayMotionBuilder::loadMotion(const play_motion_builder_msgs::Motion &mo
   headers << QString("Time");
   for (const auto &joint : motion.joints)
   {
-    headers << QString::fromStdString(joint.substr(0, joint.size() - 6));
+    headers << QString::fromStdString(joint);
     ROS_DEBUG_STREAM("Joint found: " << joint);
   }
   ui_.movement_table_->setHorizontalHeaderLabels(headers);
@@ -292,7 +292,7 @@ double RQTPlayMotionBuilder::getJointPosition(const std::vector<std::string> &jo
 {
   for (unsigned int i = 0; i < joints.size(); ++i)
   {
-    if (joints[i] == joint_header + "_joint")
+    if (joints[i] == joint_header)
       return poses[i];
   }
 
