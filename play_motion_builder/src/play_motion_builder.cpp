@@ -369,6 +369,9 @@ void ROSMotionBuilderNode::executeRunMotionCb(const play_motion_builder_msgs::Ru
     // Execute the motion
     play_motion_msgs::PlayMotionGoal motion_goal;
     motion_goal.motion_name = motion_->getParamName();
+    // Allow skipping the approach planner (required when play_motion runs with
+    // disable_motion_planning, e.g. robots without a MoveIt move_group).
+    motion_goal.skip_planning = private_nh_.param("skip_planning", false);
     play_motion_client_.sendGoal(motion_goal);
 
     // Track goal
