@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(rqt_play_motion_builder)
 
-add_compile_options(-std=c++11)
-
 find_package(catkin REQUIRED
   COMPONENTS
   roscpp
@@ -55,8 +53,6 @@ endif()
 
 include_directories(include)
 include_directories(SYSTEM ${CMAKE_CURRENT_BINARY_DIR} ${catkin_INCLUDE_DIRS})
-
-add_compile_options(-std=c++11)
 
 add_library(${PROJECT_NAME}_gui
   src/rqt_play_motion_builder.cpp
